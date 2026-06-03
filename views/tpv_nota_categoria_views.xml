@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ============================================ -->
+    <!-- tpv.nota.categoria Views                     -->
+    <!-- ============================================ -->
+
+    <record id="tpv_nota_categoria_view_tree" model="ir.ui.view">
+        <field name="name">tpv.nota.categoria.list</field>
+        <field name="model">tpv.nota.categoria</field>
+        <field name="arch" type="xml">
+            <list editable="bottom">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="activa" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="tpv_nota_categoria_view_form" model="ir.ui.view">
+        <field name="name">tpv.nota.categoria.form</field>
+        <field name="model">tpv.nota.categoria</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="sequence"/>
+                            <field name="activa"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="tpv_nota_categoria_action" model="ir.actions.act_window">
+        <field name="name">Categorías de Notas</field>
+        <field name="res_model">tpv.nota.categoria</field>
+        <field name="view_mode">list,form</field>
+    </record>
+</odoo>

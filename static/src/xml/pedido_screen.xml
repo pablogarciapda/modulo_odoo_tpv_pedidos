@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="tpv_pedidos.PedidoScreen">
+        <div class="pedido-screen d-flex flex-column h-100">
+            <!-- Header -->
+            <div class="pedido-header d-flex justify-content-between align-items-center p-3 bg-dark text-white">
+                <button class="btn btn-outline-light" t-on-click="goBack">
+                    <i class="fa fa-arrow-left"/> Volver
+                </button>
+                <h2 class="mb-0">
+                    <i class="fa fa-truck"/> Pedido a Obrador —
+                    <span t-esc="posConfigName"/>
+                </h2>
+                <div></div>
+            </div>
+
+            <!-- Main content: Categories + Products -->
+            <div class="pedido-content d-flex flex-grow-1">
+                <!-- Categories sidebar -->
+                <div class="pedido-categories p-2 bg-light border-end" style="width: 280px; overflow-y: auto;">
+                    <!-- Search bar -->
+                    <div class="mb-3">
+                        <input type="text" class="form-control" placeholder="Buscar producto..."
+                            t-model="state.searchText" t-on-input="updateSearch"/>
+                    </div>
+                    <!-- All categories button -->
+                    <button class="btn btn-outline-primary w-100 mb-2"
+                        t-on-click="() => this.selectCategory(null)">
+                        Todos
+                    </button>
+                    <!-- Category list -->
+                    <t t-foreach="categories" t-as="category" t-key="category.id">
+                        <button class="btn w-100 mb-1 text-start"
+                            t-att-class="state.selectedCategoryId === category.id ? 'btn-primary' : 'btn-outline-secondary'"
+                            t-on-click="() => this.selectCategory(category.id)">
+                            <span t-esc="category.name"/>
+                        </button>
+                    </t>
+                </div>
+
+                <!-- Products grid -->
+                <div class="pedido-products flex-grow-1 p-3 overflow-auto">
+                    <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3">
+                        <t t-foreach="products" t-as="product" t-key="product.id">
+                            <div class="col">
+                                <div class="card h-100 pedido-product-card"
+                                    t-on-click="() => this.onProductClick(product)">
+                                    <div class="card-body text-center p-2">
+                                        <h6 class="card-title" t-esc="product.display_name"/>
+                                        <small class="text-muted" t-esc="product.lst_price"/> €
+                                    </div>
+                                </div>
+                            </div>
+                        </t>
+                    </div>
+                </div>
+
+                <!-- Order sidebar -->
+                <div class="pedido-order-sidebar p-3 bg-light border-start" style="width: 320px; overflow-y: auto;">
+                    <h5>Pedido (<span t-esc="pedidoOrder.totalLines"/>)</h5>
+                    <PedidoOrder pedidoOrder="pedidoOrder" notaCategorias="state.notaCategorias"/>
+                    <PedidoActionButtons
+                        pedidoOrder="pedidoOrder"
+                        posConfigId="posConfigId"
+                        posConfigName="posConfigName"/>
+                </div>
+            </div>
+        </div>
+    </t>
+</templates>

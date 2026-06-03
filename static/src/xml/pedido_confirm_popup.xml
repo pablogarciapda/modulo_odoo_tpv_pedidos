@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="tpv_pedidos.PedidoConfirmPopup">
+        <Dialog size="'md'">
+            <t t-set-slot="header">
+                <h4 class="modal-title">
+                    <t t-if="isEncargo">
+                        <i class="fa fa-star text-warning me-2"/>Confirmar Encargo
+                    </t>
+                    <t t-else="">
+                        <i class="fa fa-truck text-primary me-2"/>Confirmar Pedido Tienda
+                    </t>
+                </h4>
+            </t>
+
+            <!-- Resumen del pedido -->
+            <div class="mb-3">
+                <h6 class="fw-bold">Resumen del pedido</h6>
+                <div class="pedido-confirm-lines">
+                    <t t-foreach="lineas" t-as="line" t-key="line.id">
+                        <div class="d-flex justify-content-between border-bottom py-1">
+                            <div>
+                                <span t-esc="line.product_name"/>
+                                <t t-if="line.nota_categoria_name">
+                                    <span class="badge bg-info ms-1" t-esc="line.nota_categoria_name"/>
+                                </t>
+                                <t t-if="line.nota_linea">
+                                    <div class="text-muted small" t-esc="line.nota_linea"/>
+                                </t>
+                            </div>
+                            <span class="fw-bold" t-esc="line.qty"/> uds
+                        </div>
+                    </t>
+                </div>
+                <div class="text-muted mt-1">
+                    Total: <span t-esc="totalLineas"/> líneas
+                </div>
+            </div>
+
+            <!-- Tienda -->
+            <div class="mb-3">
+                <span class="fw-bold">Tienda:</span>
+                <span t-esc="posConfigName"/>
+            </div>
+
+            <!-- Nota general -->
+            <div class="mb-3">
+                <label class="form-label fw-bold" for="nota_general_input">Nota general del pedido</label>
+                <textarea class="form-control" id="nota_general_input" rows="3"
+                    t-model="state.nota_general" placeholder="Notas adicionales para todo el pedido..."/>
+            </div>
+
+            <t t-set-slot="footer">
+                <button class="btn btn-primary btn-lg" t-on-click="confirm">
+                    <t t-if="isEncargo">
+                        <i class="fa fa-star me-1"/>Confirmar Encargo
+                    </t>
+                    <t t-else="">
+                        <i class="fa fa-truck me-1"/>Confirmar Pedido
+                    </t>
+                </button>
+                <button class="btn btn-secondary" t-on-click="cancel">Cancelar</button>
+            </t>
+        </Dialog>
+    </t>
+</templates>

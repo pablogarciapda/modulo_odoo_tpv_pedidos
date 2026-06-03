@@ -123,6 +123,71 @@ class TpvPedido(models.Model):
         for rec in self:
             rec.write({'state': 'draft'})
 
+    def action_view_sale_order(self):
+        """Abre el sale.order asociado al pedido."""
+        self.ensure_one()
+        if not self.sale_order_id:
+            return {'type': 'ir.actions.act_window_close'}
+        return {
+            'type': 'ir.actions.act_window',
+            'res_model': 'sale.order',
+            'view_mode': 'form',
+            'res_id': self.sale_order_id.id,
+            'target': 'current',
+        }
+
+    @api.model
+    def create_pedido_from_pos(self, pos_config_id, tipo_pedido, lines,
+                               nota_general='', partner_id=False):
+        """
+        Crea un pedido desde el frontend del TPV.
+        Usado por el controller JSON-RPC y directamente por orm.call.
+
+        :param pos_config_id: ID del pos.config (tienda)
+        :param tipo_pedido: 'encargo' o 'pedido_tienda'
+        :param lines: lista de dicts [{product_id, qty, nota_linea, nota_categoria_id}]
+        :param nota_general: texto libre
+        :param partner_id: ID del cliente (opcional)
+        :return: dict con {pedido_id, name, sale_order_id}
+        """
+        if not lines:
+            raise ValidationError(
+                _('El pedido debe tener al menos una línea.')
+            )
+
+        # Cliente por defecto: OBRADOR
+        if not partner_id:
+            obrador = self.env.ref(
+                'tpv_pedidos.partner_obrador', raise_if_not_found=False
+            )
+            if obrador:
+                partner_id = obrador.id
+
+        line_vals = []
+        for line in lines:
+            line_vals.append((0, 0, {
+                'product_id': line.get('product_id'),
+                'qty': line.get('qty', 1.0),
+                'nota_linea': line.get('nota_linea', ''),
+                'nota_categoria_id': line.get('nota_categoria_id') or False,
+            }))
+
+        pedido_vals = {
+            'pos_config_id': pos_config_id,
+            'tipo_pedido': tipo_pedido,
+            'partner_id': partner_id,
+            'nota_general': nota_general,
+            'line_ids': line_vals,
+        }
+
+        pedido = self.create(pedido_vals)
+        pedido.action_confirm()
+        return {
+            'pedido_id': pedido.id,
+            'name': pedido.name,
+            'sale_order_id': pedido.sale_order_id.id,
+        }
+
     def action_done(self):
         for rec in self:
             rec.write({'state': 'done'})

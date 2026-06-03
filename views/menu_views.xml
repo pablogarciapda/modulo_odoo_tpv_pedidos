@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ============================================ -->
+    <!-- Menú Principal: Pedidos Obrador             -->
+    <!-- ============================================ -->
+
+    <!-- Menú raíz bajo Punto de Venta -->
+    <menuitem id="menu_tpv_pedidos_root"
+        name="Pedidos Obrador"
+        parent="point_of_sale.menu_point_root"
+        sequence="15"/>
+
+    <!-- Submenú Pedidos -->
+    <menuitem id="menu_tpv_pedidos_pedido"
+        name="Pedidos"
+        parent="menu_tpv_pedidos_root"
+        action="tpv_pedido_action"
+        sequence="10"/>
+
+    <!-- Submenú Categorías de Notas -->
+    <menuitem id="menu_tpv_pedidos_nota_categoria"
+        name="Categorías de Notas"
+        parent="menu_tpv_pedidos_root"
+        action="tpv_nota_categoria_action"
+        sequence="20"/>
+
+    <!-- Submenú Configuración -->
+    <menuitem id="menu_tpv_pedidos_config"
+        name="Configuración"
+        parent="menu_tpv_pedidos_root"
+        sequence="30"
+        groups="point_of_sale.group_pos_manager"/>
+</odoo>

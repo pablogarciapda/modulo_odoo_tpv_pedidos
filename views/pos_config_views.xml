@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ============================================ -->
+    <!-- Herencia: pos.config → campos impresora      -->
+    <!-- ============================================ -->
+
+    <record id="tpv_pedido_pos_config_view_form" model="ir.ui.view">
+        <field name="name">pos.config.form.inherit.tpv.pedido</field>
+        <field name="model">pos.config</field>
+        <field name="inherit_id" ref="point_of_sale.pos_config_view_form"/>
+        <field name="arch" type="xml">
+            <!-- Añadir sección de impresora del obrador después de la config de impresoras existente -->
+            <xpath expr="//field[@name='proxy_ip']" position="after">
+                <group string="Impresora del Obrador"
+                    name="tpv_pedido_printer_group">
+                    <field name="tpv_pedido_printer_ip"
+                        placeholder="192.168.1.100"/>
+                    <field name="tpv_pedido_printer_port"/>
+                    <field name="tpv_pedido_printer_type"
+                        widget="radio"/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+</odoo>

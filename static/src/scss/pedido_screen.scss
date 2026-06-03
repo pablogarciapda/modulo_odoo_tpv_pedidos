@@ -1,0 +1,78 @@
+// TPV Pedidos - PedidoScreen Styles
+// ================================
+
+.pedido-screen {
+    .pedido-header {
+        z-index: 10;
+    }
+
+    .pedido-categories {
+        .btn-outline-primary.active,
+        .btn-primary {
+            font-weight: 600;
+        }
+    }
+
+    .pedido-product-card {
+        cursor: pointer;
+        transition: transform 0.1s, box-shadow 0.1s;
+
+        &:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        &:active {
+            transform: translateY(0);
+        }
+    }
+
+    .pedido-order-sidebar {
+        border-left: 2px solid #dee2e6;
+
+        h5 {
+            border-bottom: 2px solid #0d6efd;
+            padding-bottom: 8px;
+        }
+    }
+
+    .pedido-action-buttons {
+        .btn-warning {
+            font-size: 1.1rem;
+        }
+        .btn-primary {
+            font-size: 1.1rem;
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+    }
+}
+
+// LoginScreen extra button
+.open-pedido-btn {
+    border: 2px solid #0d6efd;
+    color: #0d6efd;
+    transition: all 0.2s;
+
+    &:hover {
+        background-color: #0d6efd;
+        color: white;
+    }
+}
+
+// PedidoOrder lines
+.pedido-order-line {
+    transition: background-color 0.15s;
+
+    &:hover {
+        background-color: #f8f9fa;
+    }
+}
+
+// PedidoConfirmPopup
+.pedido-confirm-lines {
+    max-height: 250px;
+    overflow-y: auto;
+}

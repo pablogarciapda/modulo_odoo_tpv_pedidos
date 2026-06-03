@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Reporte PDF: Resumen de Pedidos al Obrador -->
+    <record id="action_report_pedido_obrador" model="ir.actions.report">
+        <field name="name">Resumen Pedidos Obrador</field>
+        <field name="model">tpv.pedido</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">tpv_pedidos.report_pedido_obrador</field>
+        <field name="report_file">tpv_pedidos.report_pedido_obrador</field>
+        <field name="print_report_name">'Resumen_Pedidos_Obrador_%s' % (object.date_pedido)</field>
+        <field name="binding_model_id" ref="model_tpv_pedido"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <!-- Template del reporte -->
+    <template id="report_pedido_obrador">
+        <t t-call="web.external_layout">
+            <t t-set="o" t-value="docs"/>
+            <t t-set="title">Resumen de Pedidos al Obrador</t>
+
+            <div class="page">
+                <!-- Fecha del reporte -->
+                <div class="text-center mb-4">
+                    <h2>Resumen de Pedidos al Obrador</h2>
+                    <p class="text-muted">
+                        Fecha: <span t-esc="min(docs.mapped('date_pedido'))" t-options="{'widget': 'date'}"/>
+                    </p>
+                </div>
+
+                <!-- ============================== -->
+                <!-- SECCIÓN 1: Resumen por Productos -->
+                <!-- ============================== -->
+                <h3 class="mt-4 mb-2">Resumen por Productos</h3>
+                <table class="table table-sm table-bordered">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Producto</th>
+                            <th class="text-end">Total Uds</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <t t-foreach="resumen" t-as="prod">
+                            <!-- Línea total del producto -->
+                            <tr class="fw-bold">
+                                <td t-esc="prod['product_name']"/>
+                                <td class="text-end" t-esc="prod['qty_total']"/>
+                            </tr>
+                            <!-- Líneas con nota -->
+                            <t t-foreach="prod['lineas_con_nota']" t-as="nota">
+                                <tr class="fst-italic text-muted">
+                                    <td class="ps-4" t-esc="nota['nota']"/>
+                                    <td class="text-end" t-esc="nota['qty']"/>
+                                </tr>
+                            </t>
+                        </t>
+                    </tbody>
+                </table>
+
+                <!-- ============================== -->
+                <!-- SECCIÓN 2: Detalle por Tienda  -->
+                <!-- ============================== -->
+                <h3 class="mt-5 mb-2">Detalle por Tienda</h3>
+                <t t-foreach="detalle" t-as="tienda_name" t-key="tienda_name">
+                    <div class="mb-4">
+                        <h4 class="bg-light p-2 rounded">
+                            <i class="fa fa-store me-2"/>
+                            <span t-esc="tienda_name"/>
+                        </h4>
+
+                        <!-- ENCARGOS -->
+                        <t t-if="detalle[tienda_name]['encargos']">
+                            <h5 class="text-warning mt-3">
+                                <i class="fa fa-star me-1"/>ENCARGOS
+                            </h5>
+                            <t t-foreach="detalle[tienda_name]['encargos']" t-as="enc">
+                                <div class="border rounded mb-2 p-2">
+                                    <div class="d-flex justify-content-between">
+                                        <strong t-esc="enc['name']"/>
+                                        <span class="text-muted small" t-esc="enc['date']"/>
+                                    </div>
+                                    <t t-if="enc['nota_general']">
+                                        <div class="text-muted fst-italic small">
+                                            Nota: <span t-esc="enc['nota_general']"/>
+                                        </div>
+                                    </t>
+                                    <ul class="list-unstyled mb-0 mt-1">
+                                        <t t-foreach="enc['lineas']" t-as="l">
+                                            <li class="ps-3">
+                                                <span t-esc="l['product_name']"/> —
+                                                <span t-esc="l['qty']"/> uds
+                                                <t t-if="l['nota']">
+                                                    <span class="badge bg-info" t-esc="l['nota']"/>
+                                                </t>
+                                            </li>
+                                        </t>
+                                    </ul>
+                                </div>
+                            </t>
+                        </t>
+
+                        <!-- PEDIDOS TIENDA -->
+                        <t t-if="detalle[tienda_name]['pedidos_tienda']">
+                            <h5 class="text-primary mt-3">
+                                <i class="fa fa-truck me-1"/>PEDIDOS TIENDA
+                            </h5>
+                            <t t-foreach="detalle[tienda_name]['pedidos_tienda']" t-as="pt">
+                                <div class="border rounded mb-2 p-2">
+                                    <div class="d-flex justify-content-between">
+                                        <strong t-esc="pt['name']"/>
+                                        <span class="text-muted small" t-esc="pt['date']"/>
+                                    </div>
+                                    <t t-if="pt['nota_general']">
+                                        <div class="text-muted fst-italic small">
+                                            Nota: <span t-esc="pt['nota_general']"/>
+                                        </div>
+                                    </t>
+                                    <ul class="list-unstyled mb-0 mt-1">
+                                        <t t-foreach="pt['lineas']" t-as="l">
+                                            <li class="ps-3">
+                                                <span t-esc="l['product_name']"/> —
+                                                <span t-esc="l['qty']"/> uds
+                                                <t t-if="l['nota']">
+                                                    <span class="badge bg-info" t-esc="l['nota']"/>
+                                                </t>
+                                            </li>
+                                        </t>
+                                    </ul>
+                                </div>
+                            </t>
+                        </t>
+                    </div>
+                </t>
+            </div>
+        </t>
+    </template>
+</odoo>

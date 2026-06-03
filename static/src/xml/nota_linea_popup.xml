@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="tpv_pedidos.NotaLineaPopup">
+        <Dialog size="'md'">
+            <t t-set-slot="header">
+                <h4 class="modal-title">Nota en línea</h4>
+            </t>
+            <div class="mb-3">
+                <label class="form-label fw-bold">Producto:</label>
+                <span t-esc="props.line.product_name"/>
+            </div>
+            <!-- Categorías predefinidas -->
+            <div class="mb-3" t-if="categorias.length > 0">
+                <label class="form-label">Categoría de nota</label>
+                <div class="d-flex flex-wrap gap-2">
+                    <t t-foreach="categorias" t-as="cat" t-key="cat.id">
+                        <button class="btn btn-sm"
+                            t-att-class="state.nota_categoria_id === cat.id ? 'btn-primary' : 'btn-outline-primary'"
+                            t-on-click="() => this.selectCategoria(cat)">
+                            <span t-esc="cat.name"/>
+                        </button>
+                    </t>
+                </div>
+            </div>
+            <!-- Nota libre -->
+            <div class="mb-3">
+                <label class="form-label" for="nota_linea_input">Nota</label>
+                <textarea class="form-control" id="nota_linea_input" rows="3"
+                    t-model="state.nota_linea" placeholder="Escribe una nota para esta línea..."/>
+            </div>
+            <t t-set-slot="footer">
+                <button class="btn btn-primary" t-on-click="confirm">Guardar</button>
+                <button class="btn btn-secondary" t-on-click="cancel">Cancelar</button>
+            </t>
+        </Dialog>
+    </t>
+</templates>

@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ============================================ -->
+    <!-- tpv.pedido Form View                         -->
+    <!-- ============================================ -->
+
+    <record id="tpv_pedido_view_form" model="ir.ui.view">
+        <field name="name">tpv.pedido.form</field>
+        <field name="model">tpv.pedido</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_confirm" string="Confirmar Pedido"
+                        type="object" class="oe_highlight"
+                        invisible="state != 'draft'"
+                        data-hotkey="w"/>
+                    <button name="action_done" string="Marcar Hecho"
+                        type="object" class="oe_highlight"
+                        invisible="state != 'confirmed'"
+                        data-hotkey="w"/>
+                    <button name="action_cancel" string="Cancelar"
+                        type="object"
+                        invisible="state not in ('draft', 'confirmed')"/>
+                    <button name="action_draft" string="Volver a Borrador"
+                        type="object"
+                        invisible="state != 'cancelled'"/>
+                    <field name="state" widget="statusbar"
+                        statusbar_visible="draft,confirmed,done"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_sale_order" string="Pedido de Venta"
+                            type="object" class="oe_stat_button" icon="fa-file-text"
+                            invisible="sale_order_id == False">
+                            <field name="sale_order_id" widget="statinfo"/>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" readonly="state != 'draft'"
+                                placeholder="Número de pedido"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="pos_config_id"
+                                options="{'no_create': True}"/>
+                            <field name="tipo_pedido"
+                                widget="radio"/>
+                            <field name="partner_id"
+                                options="{'no_create': True}"/>
+                            <field name="date_pedido"/>
+                        </group>
+                        <group>
+                            <field name="es_encargo" invisible="True"/>
+                            <field name="sale_order_id" readonly="True"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                    <group string="Nota General">
+                        <field name="nota_general" placeholder="Notas generales del pedido..."/>
+                    </group>
+                    <notebook>
+                        <page string="Líneas del Pedido" name="lines">
+                            <field name="line_ids">
+                                <list editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="product_id" widget="many2one"/>
+                                    <field name="qty"/>
+                                    <field name="precio_unitario"/>
+                                    <field name="nota_categoria_id"
+                                        options="{'no_create': True}"/>
+                                    <field name="nota_linea" placeholder="Nota..."/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <!-- ============================================ -->
+    <!-- tpv.pedido Tree View                         -->
+    <!-- ============================================ -->
+
+    <record id="tpv_pedido_view_tree" model="ir.ui.view">
+        <field name="name">tpv.pedido.list</field>
+        <field name="model">tpv.pedido</field>
+        <field name="arch" type="xml">
+            <list decoration-danger="state == 'cancelled'"
+                  decoration-info="state == 'draft'"
+                  decoration-success="state == 'done'"
+                  decoration-warning="tipo_pedido == 'encargo' and state == 'confirmed'">
+                <field name="name"/>
+                <field name="date_pedido"/>
+                <field name="pos_config_id"/>
+                <field name="tipo_pedido" widget="badge"
+                    decoration-warning="tipo_pedido == 'encargo'"
+                    decoration-info="tipo_pedido == 'pedido_tienda'"/>
+                <field name="partner_id"/>
+                <field name="state" widget="badge"
+                    decoration-info="state == 'draft'"
+                    decoration-warning="state == 'confirmed'"
+                    decoration-success="state == 'done'"
+                    decoration-danger="state == 'cancelled'"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- ============================================ -->
+    <!-- tpv.pedido Search View                       -->
+    <!-- ============================================ -->
+
+    <record id="tpv_pedido_view_search" model="ir.ui.view">
+        <field name="name">tpv.pedido.search</field>
+        <field name="model">tpv.pedido</field>
+        <field name="arch" type="xml">
+            <search string="Buscar Pedidos">
+                <field name="name"/>
+                <field name="pos_config_id"/>
+                <field name="partner_id"/>
+                <field name="date_pedido"/>
+                <separator/>
+                <filter name="filter_draft" string="Borrador"
+                    domain="[('state', '=', 'draft')]"/>
+                <filter name="filter_confirmed" string="Confirmado"
+                    domain="[('state', '=', 'confirmed')]"/>
+                <filter name="filter_done" string="Hecho"
+                    domain="[('state', '=', 'done')]"/>
+                <filter name="filter_cancelled" string="Cancelado"
+                    domain="[('state', '=', 'cancelled')]"/>
+                <separator/>
+                <filter name="filter_encargo" string="Encargos"
+                    domain="[('tipo_pedido', '=', 'encargo')]"/>
+                <filter name="filter_pedido_tienda" string="Pedidos Tienda"
+                    domain="[('tipo_pedido', '=', 'pedido_tienda')]"/>
+                <separator/>
+                <group expand="0" string="Agrupar por">
+                    <filter name="group_by_tienda" string="Tienda"
+                        context="{'group_by': 'pos_config_id'}"/>
+                    <filter name="group_by_tipo" string="Tipo de Pedido"
+                        context="{'group_by': 'tipo_pedido'}"/>
+                    <filter name="group_by_state" string="Estado"
+                        context="{'group_by': 'state'}"/>
+                    <filter name="group_by_date" string="Fecha"
+                        context="{'group_by': 'date_pedido:day'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- ============================================ -->
+    <!-- tpv.pedido Action                            -->
+    <!-- ============================================ -->
+
+    <record id="tpv_pedido_action" model="ir.actions.act_window">
+        <field name="name">Pedidos Obrador</field>
+        <field name="res_model">tpv.pedido</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{'search_default_filter_confirmed': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No hay pedidos al obrador todavía.
+            </p>
+            <p>
+                Los pedidos se crean desde el TPV pulsando "Pedido a Obrador".
+            </p>
+        </field>
+    </record>
+</odoo>

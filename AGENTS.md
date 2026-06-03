@@ -124,10 +124,10 @@ El reporte QWeb (`report_pedido_obrador.xml`) tiene dos secciones dentro de `t-c
 - [x] Security (ACL + reglas por tienda)
 - [x] Data (secuencia, cron, partner OBRADOR, categorías notas)
 - [x] Cron _cron_imprimir_resumen_obrador + métodos ESC/POS
-- [ ] Controller JSON-RPC para frontend OWL
-- [ ] Componentes OWL (LoginScreen patch, PedidoScreen, popups)
-- [ ] Templates QWeb para componentes OWL
-- [ ] SCSS para PedidoScreen
-- [ ] Vistas backend (form/tree/search + menú)
-- [ ] Reporte QWeb
-- [ ] Tests
+- [x] Controller JSON-RPC (create_pedido, get_nota_categorias, get_partner_obrador)
+- [x] Componentes OWL (LoginScreen patch, PedidoScreen, PedidoOrder, PedidoActionButtons, NotaLineaPopup, PedidoConfirmPopup)
+- [x] Templates QWeb para componentes OWL
+- [x] SCSS para PedidoScreen
+- [x] Vistas backend (form/tree/search + menú)
+- [x] Reporte QWeb (resumen por productos + detalle por tienda)
+- [x] Tests básicos
