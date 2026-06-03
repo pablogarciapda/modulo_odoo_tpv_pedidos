@@ -3,110 +3,159 @@
     <t t-name="tpv_pedidos.PedidoScreen">
         <div class="pedido-screen d-flex flex-column h-100">
             <!-- Header -->
-            <div class="pedido-header d-flex justify-content-between align-items-center p-3 bg-dark text-white">
-                <button class="btn btn-outline-light" t-on-click="goBack">
-                    <i class="fa fa-arrow-left"/> Volver
+            <div class="pedido-header d-flex justify-content-between align-items-center px-3 py-2 bg-dark text-white">
+                <button class="btn btn-outline-light btn-lg" t-on-click="goBack">
+                    <i class="fa fa-arrow-left me-2"/>Volver
                 </button>
-                <h2 class="mb-0">
-                    <i class="fa fa-truck"/> Pedido a Obrador —
+                <h4 class="mb-0">
+                    <i class="fa fa-truck me-2"/>Pedido a Obrador —
                     <span t-esc="posConfigName"/>
-                </h2>
+                </h4>
                 <div></div>
             </div>
 
-            <!-- Main content: Categories + Products -->
+            <!-- Main content -->
             <div class="pedido-content d-flex flex-grow-1" style="overflow: hidden;">
-                <!-- Categories sidebar -->
-                <div class="pedido-categories p-2 bg-light border-end" style="width: 280px; overflow-y: auto;">
-                    <div class="mb-3">
-                        <input type="text" class="form-control" placeholder="Buscar producto..."
-                            t-model="state.searchText" t-on-input="updateSearch"/>
+                <!-- LEFT: Order panel -->
+                <div class="pedido-order-panel d-flex flex-column bg-light" style="width: 350px; min-width: 350px; border-right: 2px solid #dee2e6;">
+                    <div class="p-2 border-bottom bg-white">
+                        <h5 class="mb-1">Pedido <span class="badge bg-primary" t-esc="totalLines"/></h5>
                     </div>
-                    <button class="btn btn-outline-primary w-100 mb-2"
-                        t-on-click="() => this.selectCategory(null)">
-                        Todos
-                    </button>
-                    <t t-foreach="categories" t-as="category" t-key="category.id">
-                        <button class="btn w-100 mb-1 text-start"
-                            t-att-class="state.selectedCategoryId === category.id ? 'btn-primary' : 'btn-outline-secondary'"
-                            t-on-click="() => this.selectCategory(category.id)">
-                            <span t-esc="category.name"/>
-                        </button>
-                    </t>
-                </div>
-
-                <!-- Products grid -->
-                <div class="pedido-products flex-grow-1 p-3 overflow-auto">
-                    <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3">
-                        <t t-foreach="products" t-as="product" t-key="product.id">
-                            <div class="col">
-                                <div class="card h-100 pedido-product-card"
-                                    t-on-click="() => this.onProductClick(product)">
-                                    <div class="card-body text-center p-2">
-                                        <h6 class="card-title" t-esc="product.display_name"/>
-                                        <small class="text-muted" t-esc="product.lst_price"/> €
-                                    </div>
-                                </div>
-                            </div>
-                        </t>
-                    </div>
-                </div>
-
-                <!-- Order sidebar -->
-                <div class="pedido-order-sidebar p-3 bg-light border-start" style="width: 320px; overflow-y: auto;">
-                    <h5>Pedido (<span t-esc="totalLines"/>)</h5>
-                    <!-- Order lines -->
-                    <div class="pedido-order-lines">
+                    <div class="pedido-order-lines flex-grow-1 overflow-auto p-2">
                         <t t-if="state.lines.length === 0">
                             <div class="text-center text-muted p-4">
-                                <i class="fa fa-shopping-basket fa-2x mb-2"/>
-                                <p>Añade productos al pedido</p>
+                                <i class="fa fa-shopping-basket fa-3x mb-2"/>
+                                <p class="mb-0">Añade productos al pedido</p>
                             </div>
                         </t>
                         <t t-foreach="state.lines" t-as="line" t-key="line.id">
-                            <div class="pedido-order-line d-flex align-items-center border rounded mb-2 p-2">
-                                <div class="flex-grow-1">
-                                    <div class="fw-bold" t-esc="line.product_name"/>
-                                    <div class="text-muted small">
-                                        <span t-esc="line.precio_unitario"/> € ×
-                                        <span t-esc="line.qty"/>
+                            <div class="pedido-order-line border rounded mb-2 p-2 bg-white">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div class="flex-grow-1 me-2">
+                                        <div class="fw-bold small" t-esc="line.product_name"/>
+                                        <div class="text-muted small">
+                                            <span t-esc="line.precio_unitario"/> € × <span t-esc="line.qty"/>
+                                            = <span t-esc="line.precio_unitario * line.qty"/> €
+                                        </div>
+                                        <t t-if="line.nota_categoria_name">
+                                            <span class="badge bg-info small" t-esc="line.nota_categoria_name"/>
+                                        </t>
+                                        <t t-if="line.nota_linea">
+                                            <div class="text-muted small fst-italic border-start border-info ps-1 mt-1" t-esc="line.nota_linea"/>
+                                        </t>
                                     </div>
-                                    <t t-if="line.nota_categoria_name">
-                                        <span class="badge bg-info me-1" t-esc="line.nota_categoria_name"/>
-                                    </t>
-                                    <t t-if="line.nota_linea">
-                                        <div class="text-muted small fst-italic" t-esc="line.nota_linea"/>
-                                    </t>
-                                </div>
-                                <div class="d-flex align-items-center gap-1">
-                                    <button class="btn btn-outline-secondary btn-sm"
-                                        t-on-click="() => this.updateQty(line.id, -1)">
-                                        <i class="fa fa-minus"/>
-                                    </button>
-                                    <span class="fw-bold" t-esc="line.qty"/>
-                                    <button class="btn btn-outline-secondary btn-sm"
-                                        t-on-click="() => this.updateQty(line.id, 1)">
-                                        <i class="fa fa-plus"/>
-                                    </button>
-                                    <button class="btn btn-outline-warning btn-sm"
-                                        t-on-click="() => this.openNotaPopup(line)">
-                                        <i class="fa fa-sticky-note"/>
-                                    </button>
-                                    <button class="btn btn-outline-danger btn-sm"
-                                        t-on-click="() => this.removeLine(line.id)">
-                                        <i class="fa fa-trash"/>
-                                    </button>
+                                    <div class="d-flex flex-column gap-1">
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-secondary" t-on-click="() => this.updateQty(line.id, -1)">
+                                                <i class="fa fa-minus"/>
+                                            </button>
+                                            <span class="btn btn-outline-secondary disabled fw-bold" t-esc="line.qty"/>
+                                            <button class="btn btn-outline-secondary" t-on-click="() => this.updateQty(line.id, 1)">
+                                                <i class="fa fa-plus"/>
+                                            </button>
+                                        </div>
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-warning" title="Añadir nota"
+                                                t-on-click="() => this.openNotaPopup(line)">
+                                                <i class="fa fa-sticky-note"/>
+                                            </button>
+                                            <button class="btn btn-outline-danger" title="Eliminar"
+                                                t-on-click="() => this.removeLine(line.id)">
+                                                <i class="fa fa-trash"/>
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </t>
                     </div>
-                    <!-- Action Buttons -->
-                    <PedidoActionButtons
-                        lines="state.lines"
-                        linesToJSON="linesToJSON"
-                        posConfigId="posConfigId"
-                        posConfigName="posConfigName"
-                        onClear="() => this.clearOrder()"/>
+                    <!-- Action buttons at bottom of left panel -->
+                    <div class="p-2 border-top bg-white">
+                        <t t-if="state.lines.length > 0">
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-warning flex-grow-1 fw-bold py-3"
+                                    t-on-click="() => this.openConfirmPopup('encargo')">
+                                    <i class="fa fa-star me-2"/>ENCARGO
+                                </button>
+                                <button class="btn btn-primary flex-grow-1 fw-bold py-3"
+                                    t-on-click="() => this.openConfirmPopup('pedido_tienda')">
+                                    <i class="fa fa-truck me-2"/>PEDIDO TIENDA
+                                </button>
+                            </div>
+                        </t>
+                        <t t-else="">
+                            <button class="btn btn-secondary w-100 py-2" disabled>
+                                <i class="fa fa-shopping-cart me-2"/>Añade productos para continuar
+                            </button>
+                        </t>
+                    </div>
+                </div>
+
+                <!-- RIGHT: Categories + Products -->
+                <div class="flex-grow-1 d-flex flex-column" style="overflow: hidden;">
+                    <!-- Search bar -->
+                    <div class="p-2 border-bottom bg-white">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fa fa-search"/></span>
+                            <input type="text" class="form-control form-control-lg"
+                                placeholder="Buscar producto..." t-model="state.searchText"/>
+                        </div>
+                    </div>
+                    <!-- Category chips -->
+                    <div class="pedido-categories p-2 border-bottom bg-light overflow-auto" style="white-space: nowrap;">
+                        <button class="btn btn-sm me-1"
+                            t-att-class="state.selectedCategoryId === null ? 'btn-dark' : 'btn-outline-secondary'"
+                            t-on-click="() => this.selectCategory(null)">
+                            Todos
+                        </button>
+                        <t t-if="categories.length > 0">
+                            <t t-foreach="categories" t-as="cat" t-key="cat.id">
+                                <button class="btn btn-sm me-1"
+                                    t-att-class="state.selectedCategoryId === cat.id ? 'btn-dark' : 'btn-outline-secondary'"
+                                    t-on-click="() => this.selectCategory(cat.id)">
+                                    <span t-esc="cat.name"/>
+                                </button>
+                            </t>
+                        </t>
+                        <t t-else="">
+                            <span class="text-muted small">Cargando categorías...</span>
+                        </t>
+                    </div>
+                    <!-- Products grid -->
+                    <div class="pedido-products flex-grow-1 p-2 overflow-auto">
+                        <t t-if="products.length === 0">
+                            <div class="text-center text-muted p-5">
+                                <i class="fa fa-box-open fa-4x mb-3"/>
+                                <p>No se encontraron productos</p>
+                            </div>
+                        </t>
+                        <t t-else="">
+                            <div class="row g-2">
+                                <t t-foreach="products" t-as="p" t-key="p.id">
+                                    <div class="col-4 col-md-3 col-xl-2">
+                                        <div class="card pedido-product-card h-100"
+                                            t-on-click="() => this.onProductClick(p)">
+                                            <!-- Product Image -->
+                                            <div class="pedido-product-img-container d-flex align-items-center justify-content-center bg-light"
+                                                style="aspect-ratio: 1; overflow: hidden;">
+                                                <t t-if="p.image_128">
+                                                    <img t-att-src="'data:image/png;base64,' + p.image_128"
+                                                        class="img-fluid" alt="" style="max-height: 100%; object-fit: contain;"/>
+                                                </t>
+                                                <t t-else="">
+                                                    <i class="fa fa-box fa-3x text-muted"/>
+                                                </t>
+                                            </div>
+                                            <!-- Product Name -->
+                                            <div class="card-body p-1 text-center">
+                                                <div class="small lh-sm fw-bold" t-esc="p.display_name"/>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </t>
+                            </div>
+                        </t>
+                    </div>
                 </div>
             </div>
         </div>

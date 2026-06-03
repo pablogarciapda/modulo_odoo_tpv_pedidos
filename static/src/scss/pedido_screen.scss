@@ -2,55 +2,86 @@
 // ================================
 
 .pedido-screen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: #f8f9fa;
+
     .pedido-header {
         z-index: 10;
+        flex-shrink: 0;
     }
 
-    .pedido-categories {
-        .btn-outline-primary.active,
-        .btn-primary {
-            font-weight: 600;
+    .pedido-order-panel {
+        flex-shrink: 0;
+
+        .pedido-order-lines {
+            .pedido-order-line {
+                transition: background-color 0.15s;
+                &:hover {
+                    background-color: #f0f0f0 !important;
+                }
+            }
         }
     }
 
     .pedido-product-card {
         cursor: pointer;
         transition: transform 0.1s, box-shadow 0.1s;
+        border: 2px solid transparent;
 
         &:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            border-color: #0d6efd;
         }
 
         &:active {
             transform: translateY(0);
         }
+
+        .pedido-product-img-container {
+            border-bottom: 1px solid #eee;
+            background: #fff !important;
+
+            img {
+                width: 100%;
+                height: 100%;
+                object-fit: contain;
+                padding: 4px;
+            }
+        }
+
+        .card-body {
+            .small {
+                font-size: 0.75rem;
+                line-height: 1.1;
+                display: -webkit-box;
+                -webkit-line-clamp: 2;
+                -webkit-box-orient: vertical;
+                overflow: hidden;
+            }
+        }
     }
 
-    .pedido-order-sidebar {
-        border-left: 2px solid #dee2e6;
+    .pedido-categories {
+        scrollbar-width: thin;
+        white-space: nowrap;
 
-        h5 {
-            border-bottom: 2px solid #0d6efd;
-            padding-bottom: 8px;
+        .btn {
+            flex-shrink: 0;
+            font-size: 0.8rem;
         }
     }
 
-    .pedido-action-buttons {
-        .btn-warning {
-            font-size: 1.1rem;
-        }
-        .btn-primary {
-            font-size: 1.1rem;
-        }
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
+    .pedido-products {
+        scrollbar-width: thin;
     }
 }
 
-// LoginScreen extra button
+// LoginScreen extra button on POS
 .open-pedido-btn {
     border: 2px solid #0d6efd;
     color: #0d6efd;
@@ -60,19 +91,4 @@
         background-color: #0d6efd;
         color: white;
     }
-}
-
-// PedidoOrder lines
-.pedido-order-line {
-    transition: background-color 0.15s;
-
-    &:hover {
-        background-color: #f8f9fa;
-    }
-}
-
-// PedidoConfirmPopup
-.pedido-confirm-lines {
-    max-height: 250px;
-    overflow-y: auto;
 }

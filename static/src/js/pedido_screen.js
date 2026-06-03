@@ -1,23 +1,19 @@
 /* tpv_pedidos - PedidoScreen
  * Pantalla tipo TPV para seleccionar productos y crear pedidos al obrador.
- * Reutiliza categorías y productos del POS sin necesidad de abrir sesión.
  */
 import { registry } from "@web/core/registry";
 import { usePos } from "@point_of_sale/app/hooks/pos_hook";
 import { useService } from "@web/core/utils/hooks";
 import { Component, useState, onMounted } from "@odoo/owl";
 import { _t } from "@web/core/l10n/translation";
-import { PedidoActionButtons } from "@tpv_pedidos/js/pedido_action_buttons";
 import { NotaLineaPopup } from "@tpv_pedidos/js/nota_linea_popup";
-import { CategorySelector } from "@point_of_sale/app/components/category_selector/category_selector";
-import { ProductCard } from "@point_of_sale/app/components/product_card/product_card";
+import { PedidoConfirmPopup } from "@tpv_pedidos/js/pedido_confirm_popup";
 
 export class PedidoScreen extends Component {
     static template = "tpv_pedidos.PedidoScreen";
     static components = {
-        PedidoActionButtons,
-        CategorySelector,
-        ProductCard,
+        NotaLineaPopup,
+        PedidoConfirmPopup,
     };
     static props = {};
 
@@ -31,7 +27,6 @@ export class PedidoScreen extends Component {
             selectedCategoryId: null,
             notaCategorias: [],
             searchText: "",
-            // Order lines management
             lines: [],
         });
 
@@ -55,69 +50,62 @@ export class PedidoScreen extends Component {
     }
 
     get categories() {
-        return this.pos.models["pos.category"].getAll();
+        if (this.pos.models && this.pos.models["pos.category"]) {
+            return this.pos.models["pos.category"].getAll();
+        }
+        return [];
     }
 
     get products() {
+        if (!this.pos.models || !this.pos.models["product.product"]) {
+            return [];
+        }
         let products = this.pos.models["product.product"].getAll();
+        if (!products || !products.length) {
+            return [];
+        }
         if (this.state.searchText) {
             const searchLower = this.state.searchText.toLowerCase();
             products = products.filter((p) =>
-                p.display_name.toLowerCase().includes(searchLower)
+                (p.display_name || "").toLowerCase().includes(searchLower)
             );
         }
         if (this.state.selectedCategoryId) {
-            const selectedCat = this.pos.models["pos.category"].get(
-                this.state.selectedCategoryId
+            products = products.filter((p) =>
+                p.pos_categ_ids && p.pos_categ_ids.some(
+                    (cid) => cid === this.state.selectedCategoryId
+                )
             );
-            if (selectedCat) {
-                const catIds = [selectedCat.id, ...this._getChildCategoryIds(selectedCat)];
-                products = products.filter((p) =>
-                    p.pos_categ_ids.some((cid) => catIds.includes(cid))
-                );
-            }
         }
         return products;
     }
 
-    _getChildCategoryIds(category) {
-        const ids = [];
-        if (category.child_id) {
-            for (const child of category.child_id) {
-                ids.push(child.id);
-                ids.push(...this._getChildCategoryIds(child));
-            }
-        }
-        return ids;
-    }
-
     selectCategory(categoryId) {
         this.state.selectedCategoryId = categoryId;
+        this.state.searchText = "";
     }
 
-    // --- Order Line Management ---
+    // --- Order management ---
 
     addLine(product) {
-        const existingLine = this.state.lines.find(
-            (l) => l.product_id === product.id
-            && !l.nota_linea
-            && !l.nota_categoria_id
+        const existing = this.state.lines.find(
+            (l) => l.product_id === product.id && !l.nota_linea
         );
-        if (existingLine) {
-            existingLine.qty += 1;
+        if (existing) {
+            existing.qty += 1;
         } else {
             this.state.lines.push({
-                id: Date.now(),
+                id: Date.now() + Math.random(),
                 product_id: product.id,
                 product_name: product.display_name,
                 qty: 1,
-                precio_unitario: product.lst_price,
+                precio_unitario: product.lst_price || 0,
+                image_128: product.image_128 || null,
                 nota_linea: "",
                 nota_categoria_id: null,
                 nota_categoria_name: "",
             });
         }
-        // Force reactivity
         this.state.lines = [...this.state.lines];
     }
 
@@ -150,27 +138,62 @@ export class PedidoScreen extends Component {
         });
     }
 
-    clearOrder() {
-        this.state.lines = [];
+    openConfirmPopup(tipoPedido) {
+        this.dialog.add(PedidoConfirmPopup, {
+            tipoPedido: tipoPedido,
+            lines: this.state.lines,
+            linesToJSON: () => this.state.lines.map((l) => ({
+                product_id: l.product_id,
+                qty: l.qty,
+                nota_linea: l.nota_linea,
+                nota_categoria_id: l.nota_categoria_id,
+            })),
+            posConfigId: this.pos.config.id,
+            posConfigName: this.pos.config.name,
+            onConfirm: async (notaGeneral) => {
+                await this._createPedido(tipoPedido, notaGeneral);
+            },
+        });
     }
 
-    get linesToJSON() {
-        return this.state.lines.map((l) => ({
+    async _createPedido(tipoPedido, notaGeneral) {
+        const lines = this.state.lines.map((l) => ({
             product_id: l.product_id,
             qty: l.qty,
             nota_linea: l.nota_linea,
             nota_categoria_id: l.nota_categoria_id,
         }));
+        try {
+            const result = await this.orm.call(
+                "tpv.pedido",
+                "create_pedido_from_pos",
+                [],
+                {
+                    pos_config_id: this.pos.config.id,
+                    tipo_pedido: tipoPedido,
+                    lines: lines,
+                    nota_general: notaGeneral,
+                }
+            );
+            if (result.error) {
+                this.notification.add(result.error, { type: "danger" });
+            } else {
+                this.notification.add(
+                    _t("Pedido %s creado correctamente", result.name),
+                    { type: "success" }
+                );
+                this.state.lines = [];
+            }
+        } catch (error) {
+            this.notification.add(
+                _t("Error al crear el pedido: %s", error.message || error),
+                { type: "danger" }
+            );
+        }
     }
 
     get totalLines() {
         return this.state.lines.length;
-    }
-
-    // --- Product selection ---
-
-    onProductClick(product) {
-        this.addLine(product);
     }
 
     updateSearch(event) {
@@ -187,6 +210,10 @@ export class PedidoScreen extends Component {
 
     goBack() {
         this.pos.navigate("LoginScreen");
+    }
+
+    onProductClick(product) {
+        this.addLine(product);
     }
 }
 
