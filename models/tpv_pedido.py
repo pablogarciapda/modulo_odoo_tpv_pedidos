@@ -212,12 +212,10 @@ class TpvPedido(models.Model):
                   'Verifica que los datos del módulo se hayan cargado.')
             )
 
-        # Obtener pricelist del pos.config o del partner
-        pricelist = self.pos_config_id.picking_type_id.warehouse_id.partner_id.property_product_pricelist
+        # Pricelist simple: el del partner o el de la compañía
+        pricelist = partner.property_product_pricelist
         if not pricelist:
-            pricelist = partner.property_product_pricelist
-        if not pricelist:
-            pricelist = self.env.user.company_id.default_pricelist_id
+            pricelist = self.env.company.default_pricelist_id
         if not pricelist:
             pricelist = self.env['product.pricelist'].search(
                 [('company_id', '=', self.env.company.id)], limit=1
@@ -230,9 +228,12 @@ class TpvPedido(models.Model):
                 'product_uom_qty': line.qty,
                 'name': line._get_sale_line_name(),
                 'price_unit': line.precio_unitario,
+                'product_uom': line.product_uom_id.id,
             }))
         sale_order_vals = {
             'partner_id': partner.id,
+            'partner_invoice_id': partner.id,
+            'partner_shipping_id': partner.id,
             'origin': self.name,
             'tpv_pedido_id': self.id,
             'tipo_pedido_tag': self.tipo_pedido,
@@ -244,6 +245,8 @@ class TpvPedido(models.Model):
         if self.nota_general:
             sale_order_vals['note'] = self.nota_general
         try:
+            _logger.info('Creando sale.order para pedido %s con vals: %s',
+                         self.name, sale_order_vals)
             sale_order = self.env['sale.order'].create(sale_order_vals)
             sale_order.action_confirm()
             self.write({'sale_order_id': sale_order.id})
@@ -254,7 +257,7 @@ class TpvPedido(models.Model):
                 self.name, str(e), exc_info=True
             )
             raise ValidationError(
-                _('Error al crear el pedido de venta: %s') % str(e)
+                _('Error al crear el pedido de venta (consulta los logs del servidor): %s') % str(e)
             )
 
     def get_resumen_por_producto(self, date_from=None, date_to=None):
