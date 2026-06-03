@@ -1,7 +1,11 @@
 # -*- coding: utf-8 -*-
 
+import logging
+
 from odoo import api, fields, models, _
 from odoo.exceptions import ValidationError
+
+_logger = logging.getLogger(__name__)
 
 
 class TpvPedido(models.Model):
@@ -202,6 +206,23 @@ class TpvPedido(models.Model):
             partner = self.env['res.partner'].search(
                 [('name', '=', 'OBRADOR')], limit=1
             )
+        if not partner:
+            raise ValidationError(
+                _('No se encontró el contacto OBRADOR. '
+                  'Verifica que los datos del módulo se hayan cargado.')
+            )
+
+        # Obtener pricelist del pos.config o del partner
+        pricelist = self.pos_config_id.picking_type_id.warehouse_id.partner_id.property_product_pricelist
+        if not pricelist:
+            pricelist = partner.property_product_pricelist
+        if not pricelist:
+            pricelist = self.env.user.company_id.default_pricelist_id
+        if not pricelist:
+            pricelist = self.env['product.pricelist'].search(
+                [('company_id', '=', self.env.company.id)], limit=1
+            )
+
         order_lines = []
         for line in self.line_ids:
             order_lines.append((0, 0, {
@@ -217,13 +238,24 @@ class TpvPedido(models.Model):
             'tipo_pedido_tag': self.tipo_pedido,
             'date_order': fields.Datetime.now(),
             'order_line': order_lines,
+            'pricelist_id': pricelist.id if pricelist else False,
+            'company_id': self.company_id.id or self.env.company.id,
         }
         if self.nota_general:
             sale_order_vals['note'] = self.nota_general
-        sale_order = self.env['sale.order'].create(sale_order_vals)
-        sale_order.action_confirm()
-        self.write({'sale_order_id': sale_order.id})
-        return sale_order
+        try:
+            sale_order = self.env['sale.order'].create(sale_order_vals)
+            sale_order.action_confirm()
+            self.write({'sale_order_id': sale_order.id})
+            return sale_order
+        except Exception as e:
+            _logger.error(
+                'Error creando sale.order para pedido %s: %s',
+                self.name, str(e), exc_info=True
+            )
+            raise ValidationError(
+                _('Error al crear el pedido de venta: %s') % str(e)
+            )
 
     def get_resumen_por_producto(self, date_from=None, date_to=None):
         """

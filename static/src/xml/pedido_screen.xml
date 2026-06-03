@@ -4,12 +4,12 @@
         <div class="pedido-screen d-flex flex-column h-100">
             <!-- Header -->
             <div class="pedido-header d-flex justify-content-between align-items-center px-3 py-2 bg-dark text-white">
-                <button class="btn btn-outline-light btn-lg" t-on-click="goBack">
+                <button class="btn btn-light btn-lg text-dark fw-bold" t-on-click="goBack">
                     <i class="fa fa-arrow-left me-2"/>Volver
                 </button>
-                <h4 class="mb-0">
-                    <i class="fa fa-truck me-2"/>Pedido a Obrador —
-                    <span t-esc="posConfigName"/>
+                <h4 class="mb-0 text-white fw-bold">
+                    <i class="fa fa-truck me-2 text-white"/>Pedido a Obrador —
+                    <t t-esc="posConfigName"/>
                 </h4>
                 <div></div>
             </div>
@@ -34,8 +34,8 @@
                                     <div class="flex-grow-1 me-2">
                                         <div class="fw-bold small" t-esc="line.product_name"/>
                                         <div class="text-muted small">
-                                            <span t-esc="line.precio_unitario"/> € × <span t-esc="line.qty"/>
-                                            = <span t-esc="line.precio_unitario * line.qty"/> €
+                                            <span t-esc="line.qty"/> × <t t-esc="line.precio_unitario.toFixed(2)"/> €
+                                            = <span t-esc="(line.precio_unitario * line.qty).toFixed(2)"/> €
                                         </div>
                                         <t t-if="line.nota_categoria_name">
                                             <span class="badge bg-info small" t-esc="line.nota_categoria_name"/>
@@ -49,7 +49,7 @@
                                             <button class="btn btn-outline-secondary" t-on-click="() => this.updateQty(line.id, -1)">
                                                 <i class="fa fa-minus"/>
                                             </button>
-                                            <span class="btn btn-outline-secondary disabled fw-bold" t-esc="line.qty"/>
+                                            <span class="btn btn-outline-secondary disabled fw-bold opacity-100" t-esc="line.qty"/>
                                             <button class="btn btn-outline-secondary" t-on-click="() => this.updateQty(line.id, 1)">
                                                 <i class="fa fa-plus"/>
                                             </button>
@@ -102,23 +102,21 @@
                         </div>
                     </div>
                     <!-- Category chips -->
-                    <div class="pedido-categories p-2 border-bottom bg-light overflow-auto" style="white-space: nowrap;">
+                    <div class="pedido-categories p-2 border-bottom bg-light overflow-auto" style="white-space: nowrap; min-height: 42px;">
                         <button class="btn btn-sm me-1"
                             t-att-class="state.selectedCategoryId === null ? 'btn-dark' : 'btn-outline-secondary'"
                             t-on-click="() => this.selectCategory(null)">
                             Todos
                         </button>
-                        <t t-if="categories.length > 0">
-                            <t t-foreach="categories" t-as="cat" t-key="cat.id">
-                                <button class="btn btn-sm me-1"
-                                    t-att-class="state.selectedCategoryId === cat.id ? 'btn-dark' : 'btn-outline-secondary'"
-                                    t-on-click="() => this.selectCategory(cat.id)">
-                                    <span t-esc="cat.name"/>
-                                </button>
-                            </t>
+                        <t t-foreach="state.posCategories" t-as="cat" t-key="cat_index">
+                            <button class="btn btn-sm me-1"
+                                t-att-class="state.selectedCategoryId === cat.id ? 'btn-dark' : 'btn-outline-secondary'"
+                                t-on-click="() => this.selectCategory(cat.id)">
+                                <span t-esc="cat.name"/>
+                            </button>
                         </t>
-                        <t t-else="">
-                            <span class="text-muted small">Cargando categorías...</span>
+                        <t t-if="!state.posCategories || state.posCategories.length === 0">
+                            <span class="text-muted small ms-2">Cargando categorías...</span>
                         </t>
                     </div>
                     <!-- Products grid -->
@@ -135,18 +133,16 @@
                                     <div class="col-4 col-md-3 col-xl-2">
                                         <div class="card pedido-product-card h-100"
                                             t-on-click="() => this.onProductClick(p)">
-                                            <!-- Product Image -->
                                             <div class="pedido-product-img-container d-flex align-items-center justify-content-center bg-light"
                                                 style="aspect-ratio: 1; overflow: hidden;">
-                                                <t t-if="p.image_128">
-                                                    <img t-att-src="'data:image/png;base64,' + p.image_128"
-                                                        class="img-fluid" alt="" style="max-height: 100%; object-fit: contain;"/>
+                                                <t t-if="this.getProductImageUrl(p)">
+                                                    <img t-att-src="this.getProductImageUrl(p)"
+                                                        class="img-fluid p-1" alt="" style="max-height: 100%; object-fit: contain;"/>
                                                 </t>
                                                 <t t-else="">
                                                     <i class="fa fa-box fa-3x text-muted"/>
                                                 </t>
                                             </div>
-                                            <!-- Product Name -->
                                             <div class="card-body p-1 text-center">
                                                 <div class="small lh-sm fw-bold" t-esc="p.display_name"/>
                                             </div>

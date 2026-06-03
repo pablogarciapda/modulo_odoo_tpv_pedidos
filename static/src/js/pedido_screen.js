@@ -25,36 +25,49 @@ export class PedidoScreen extends Component {
 
         this.state = useState({
             selectedCategoryId: null,
+            posCategories: [],
             notaCategorias: [],
             searchText: "",
             lines: [],
         });
 
         onMounted(async () => {
-            await this._loadNotaCategorias();
+            await this._loadData();
         });
     }
 
-    async _loadNotaCategorias() {
+    async _loadData() {
+        // Load note categories from backend
         try {
-            const categorias = await this.orm.call(
+            const cats = await this.orm.call(
                 "tpv.nota.categoria",
                 "search_read",
                 [[["activa", "=", true]], ["id", "name", "sequence"]],
                 { order: "sequence, name" }
             );
-            this.state.notaCategorias = categorias;
-        } catch (error) {
-            console.error("Error loading nota categorias:", error);
+            this.state.notaCategorias = cats || [];
+        } catch (err) {
+            console.error("Error loading nota categorias:", err);
+        }
+
+        // Load POS categories into state for reactivity
+        if (this.pos.models && this.pos.models["pos.category"]) {
+            this.state.posCategories = this.pos.models["pos.category"].getAll() || [];
         }
     }
 
-    get categories() {
-        if (this.pos.models && this.pos.models["pos.category"]) {
-            return this.pos.models["pos.category"].getAll();
-        }
-        return [];
+    // --- Product image URL ---
+
+    getProductImageUrl(product) {
+        if (!product) return false;
+        // Use the same pattern as POS ProductScreen:
+        // /web/image?model=product.product&field=image_128&id=X&unique=write_date
+        const base = "/web/image?model=product.product&field=image_128&id=";
+        const unique = product.write_date ? `&unique=${product.write_date}` : "";
+        return `${base}${product.id}${unique}`;
     }
+
+    // --- Product filtering ---
 
     get products() {
         if (!this.pos.models || !this.pos.models["product.product"]) {
@@ -64,32 +77,45 @@ export class PedidoScreen extends Component {
         if (!products || !products.length) {
             return [];
         }
+
+        // Filter by search text
         if (this.state.searchText) {
             const searchLower = this.state.searchText.toLowerCase();
             products = products.filter((p) =>
                 (p.display_name || "").toLowerCase().includes(searchLower)
             );
         }
+
+        // Filter by category using getBy (indexed lookup) like POS does
         if (this.state.selectedCategoryId) {
-            products = products.filter((p) =>
-                p.pos_categ_ids && p.pos_categ_ids.some(
-                    (cid) => cid === this.state.selectedCategoryId
-                )
+            // getBy returns products that have this category ID in pos_categ_ids
+            const catProducts = this.pos.models["product.product"].getBy(
+                "pos_categ_ids", this.state.selectedCategoryId
             );
+            if (catProducts && catProducts.length) {
+                const catProductIds = new Set(catProducts.map((p) => p.id));
+                products = products.filter((p) => catProductIds.has(p.id));
+            } else {
+                // Fallback: manual filter (pos_categ_ids are objects with .id)
+                products = products.filter((p) =>
+                    p.pos_categ_ids &&
+                    p.pos_categ_ids.some((cat) => (cat && typeof cat === "object" ? cat.id : cat) === this.state.selectedCategoryId)
+                );
+            }
         }
+
         return products;
     }
 
     selectCategory(categoryId) {
         this.state.selectedCategoryId = categoryId;
-        this.state.searchText = "";
     }
 
     // --- Order management ---
 
     addLine(product) {
         const existing = this.state.lines.find(
-            (l) => l.product_id === product.id && !l.nota_linea
+            (l) => l.product_id === product.id && !l.nota_linea && !l.nota_categoria_id
         );
         if (existing) {
             existing.qty += 1;
@@ -100,7 +126,6 @@ export class PedidoScreen extends Component {
                 product_name: product.display_name,
                 qty: 1,
                 precio_unitario: product.lst_price || 0,
-                image_128: product.image_128 || null,
                 nota_linea: "",
                 nota_categoria_id: null,
                 nota_categoria_name: "",
@@ -139,6 +164,7 @@ export class PedidoScreen extends Component {
     }
 
     openConfirmPopup(tipoPedido) {
+        if (this.state.lines.length === 0) return;
         this.dialog.add(PedidoConfirmPopup, {
             tipoPedido: tipoPedido,
             lines: this.state.lines,
@@ -175,18 +201,23 @@ export class PedidoScreen extends Component {
                     nota_general: notaGeneral,
                 }
             );
-            if (result.error) {
-                this.notification.add(result.error, { type: "danger" });
-            } else {
+            if (result && result.error) {
+                this.notification.add(String(result.error), { type: "danger" });
+            } else if (result && result.name) {
                 this.notification.add(
                     _t("Pedido %s creado correctamente", result.name),
                     { type: "success" }
                 );
                 this.state.lines = [];
+            } else {
+                this.notification.add(
+                    _t("Respuesta inesperada del servidor"),
+                    { type: "warning" }
+                );
             }
         } catch (error) {
             this.notification.add(
-                _t("Error al crear el pedido: %s", error.message || error),
+                _t("Error: %s", error.message || error.data?.message || JSON.stringify(error)),
                 { type: "danger" }
             );
         }
@@ -194,18 +225,6 @@ export class PedidoScreen extends Component {
 
     get totalLines() {
         return this.state.lines.length;
-    }
-
-    updateSearch(event) {
-        this.state.searchText = event.target.value;
-    }
-
-    get posConfigId() {
-        return this.pos.config.id;
-    }
-
-    get posConfigName() {
-        return this.pos.config.name;
     }
 
     goBack() {
