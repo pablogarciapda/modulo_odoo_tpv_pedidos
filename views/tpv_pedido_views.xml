@@ -57,7 +57,7 @@
                             <field name="company_id" groups="base.group_multi_company"/>
                         </group>
                     </group>
-                    <group string="Nota General">
+                    <group name="nota_general">
                         <field name="nota_general" placeholder="Notas generales del pedido..."/>
                     </group>
                     <notebook>
@@ -121,12 +121,11 @@
         <field name="name">tpv.pedido.search</field>
         <field name="model">tpv.pedido</field>
         <field name="arch" type="xml">
-            <search string="Buscar Pedidos">
+            <search>
                 <field name="name"/>
                 <field name="pos_config_id"/>
                 <field name="partner_id"/>
                 <field name="date_pedido"/>
-                <separator/>
                 <filter name="filter_draft" string="Borrador"
                     domain="[('state', '=', 'draft')]"/>
                 <filter name="filter_confirmed" string="Confirmado"
@@ -135,22 +134,18 @@
                     domain="[('state', '=', 'done')]"/>
                 <filter name="filter_cancelled" string="Cancelado"
                     domain="[('state', '=', 'cancelled')]"/>
-                <separator/>
                 <filter name="filter_encargo" string="Encargos"
                     domain="[('tipo_pedido', '=', 'encargo')]"/>
                 <filter name="filter_pedido_tienda" string="Pedidos Tienda"
                     domain="[('tipo_pedido', '=', 'pedido_tienda')]"/>
-                <separator/>
-                <group expand="0" string="Agrupar por">
-                    <filter name="group_by_tienda" string="Tienda"
-                        context="{'group_by': 'pos_config_id'}"/>
-                    <filter name="group_by_tipo" string="Tipo de Pedido"
-                        context="{'group_by': 'tipo_pedido'}"/>
-                    <filter name="group_by_state" string="Estado"
-                        context="{'group_by': 'state'}"/>
-                    <filter name="group_by_date" string="Fecha"
-                        context="{'group_by': 'date_pedido:day'}"/>
-                </group>
+                <filter name="group_by_tienda" string="Tienda"
+                    context="{'group_by': 'pos_config_id'}"/>
+                <filter name="group_by_tipo" string="Tipo de Pedido"
+                    context="{'group_by': 'tipo_pedido'}"/>
+                <filter name="group_by_state" string="Estado"
+                    context="{'group_by': 'state'}"/>
+                <filter name="group_by_date" string="Fecha"
+                    context="{'group_by': 'date_pedido:day'}"/>
             </search>
         </field>
     </record>

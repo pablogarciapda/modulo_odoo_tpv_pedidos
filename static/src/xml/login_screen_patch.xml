@@ -1,7 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
-    <t t-name="tpv_pedidos.LoginScreen" t-inherit="point_of_sale.LoginScreen"
-       t-inherit-mode="extension">
+    <!--
+        Herbencia del LoginScreen del POS usando t-inherit SIN t-name
+        para parchear el template original "point_of_sale.LoginScreen".
+        Si se pone t-name, crea un template nuevo y el botón nunca aparece.
+    -->
+    <t t-inherit="point_of_sale.LoginScreen" t-inherit-mode="extension">
         <!-- Añadir botón "Pedido a Obrador" junto a "Open Register" -->
         <xpath expr="//button[hasclass('open-register-btn')]" position="after">
             <button class="open-pedido-btn btn btn-primary btn-lg d-flex flex-column align-items-center flex-grow-1 flex-basis-100 gap-2 p-5 rounded-4 lh-lg"
