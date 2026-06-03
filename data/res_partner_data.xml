@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- Cliente genérico OBRADOR para los pedidos -->
+        <record id="partner_obrador" model="res.partner">
+            <field name="name">OBRADOR</field>
+            <field name="es_obrador" eval="True"/>
+            <field name="customer_rank" eval="1"/>
+            <field name="is_company" eval="True"/>
+            <field name="street">Obrador Principal</field>
+            <field name="type">contact</field>
+        </record>
+    </data>
+</odoo>

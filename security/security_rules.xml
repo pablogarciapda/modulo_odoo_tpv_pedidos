@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Grupo de Gestor de Pedidos TPV (hereda de POS Manager) -->
+    <record id="group_tpv_pedido_manager" model="res.groups">
+        <field name="name">Gestor Pedidos Obrador</field>
+        <field name="category_id" ref="point_of_sale.module_category_point_of_sale"/>
+        <field name="implied_ids" eval="[Command.link(ref('point_of_sale.group_pos_manager'))]"/>
+    </record>
+
+    <!-- Regla: los cajeros solo ven pedidos de su propia tienda -->
+    <record id="tpv_pedido_own_store_rule" model="ir.rule">
+        <field name="name">TPV Pedido: ver solo pedidos de tu tienda</field>
+        <field name="model_id" ref="model_tpv_pedido"/>
+        <field name="domain_force">[('pos_config_id.allowed_session_ids.user_id', '=', user.id)]</field>
+        <field name="groups" eval="[Command.link(ref('point_of_sale.group_pos_user'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+
+    <!-- Regla: los gestores ven todos los pedidos -->
+    <record id="tpv_pedido_all_rule" model="ir.rule">
+        <field name="name">TPV Pedido: gestores ven todos los pedidos</field>
+        <field name="model_id" ref="model_tpv_pedido"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[Command.link(ref('group_tpv_pedido_manager'))]"/>
+    </record>
+</odoo>

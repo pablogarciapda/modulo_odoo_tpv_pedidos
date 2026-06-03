@@ -1,0 +1,1 @@
+from . import test_tpv_pedido

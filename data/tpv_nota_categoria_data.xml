@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Categorías de notas por defecto (updatable) -->
+        <record id="nota_categoria_urgente" model="tpv.nota.categoria">
+            <field name="name">Urgente</field>
+            <field name="sequence">10</field>
+            <field name="activa" eval="True"/>
+        </record>
+        <record id="nota_categoria_para_manana" model="tpv.nota.categoria">
+            <field name="name">Para mañana</field>
+            <field name="sequence">20</field>
+            <field name="activa" eval="True"/>
+        </record>
+        <record id="nota_categoria_sin_gluten" model="tpv.nota.categoria">
+            <field name="name">Sin gluten</field>
+            <field name="sequence">30</field>
+            <field name="activa" eval="True"/>
+        </record>
+        <record id="nota_categoria_especial" model="tpv.nota.categoria">
+            <field name="name">Especial</field>
+            <field name="sequence">40</field>
+            <field name="activa" eval="True"/>
+        </record>
+    </data>
+</odoo>
