@@ -3,7 +3,7 @@
 import logging
 
 from odoo import http
-from odoo.http import request, JsonResponse
+from odoo.http import request
 
 _logger = logging.getLogger(__name__)
 
