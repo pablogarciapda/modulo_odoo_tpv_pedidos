@@ -1,10 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <!-- Privilege category for TPV Pedidos (Odoo 19 uses privilege_id, NOT category_id) -->
+    <record model="res.groups.privilege" id="res_groups_privilege_tpv_pedidos">
+        <field name="name">TPV Pedidos</field>
+        <field name="sequence">22</field>
+        <field name="category_id" ref="base.module_category_sales"/>
+    </record>
+
     <!-- Grupo de Gestor de Pedidos TPV (hereda de POS Manager) -->
     <record id="group_tpv_pedido_manager" model="res.groups">
         <field name="name">Gestor Pedidos Obrador</field>
-        <field name="category_id" ref="point_of_sale.module_category_point_of_sale"/>
-        <field name="implied_ids" eval="[Command.link(ref('point_of_sale.group_pos_manager'))]"/>
+        <field name="sequence">20</field>
+        <field name="privilege_id" ref="res_groups_privilege_tpv_pedidos"/>
+        <field name="implied_ids" eval="[(4, ref('point_of_sale.group_pos_manager'))]"/>
     </record>
 
     <!-- Regla: los cajeros solo ven pedidos de su propia tienda -->
@@ -12,7 +20,7 @@
         <field name="name">TPV Pedido: ver solo pedidos de tu tienda</field>
         <field name="model_id" ref="model_tpv_pedido"/>
         <field name="domain_force">[('pos_config_id.allowed_session_ids.user_id', '=', user.id)]</field>
-        <field name="groups" eval="[Command.link(ref('point_of_sale.group_pos_user'))]"/>
+        <field name="groups" eval="[(4, ref('point_of_sale.group_pos_user'))]"/>
         <field name="perm_read" eval="True"/>
         <field name="perm_write" eval="False"/>
         <field name="perm_create" eval="False"/>
@@ -24,6 +32,6 @@
         <field name="name">TPV Pedido: gestores ven todos los pedidos</field>
         <field name="model_id" ref="model_tpv_pedido"/>
         <field name="domain_force">[(1, '=', 1)]</field>
-        <field name="groups" eval="[Command.link(ref('group_tpv_pedido_manager'))]"/>
+        <field name="groups" eval="[(4, ref('group_tpv_pedido_manager'))]"/>
     </record>
 </odoo>
