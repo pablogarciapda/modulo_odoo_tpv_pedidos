@@ -84,7 +84,7 @@
                             </div>
                         </t>
                         <t t-else="">
-                            <button class="btn btn-secondary w-100 py-2" disabled>
+                            <button class="btn btn-secondary w-100 py-2" disabled="disabled">
                                 <i class="fa fa-shopping-cart me-2"/>Añade productos para continuar
                             </button>
                         </t>
