@@ -4,14 +4,16 @@
 import { Component } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
 import { _t } from "@web/core/l10n/translation";
-import { PedidoConfirmPopup } from "@tpv_pedidos/static/src/js/pedido_confirm_popup";
+import { PedidoConfirmPopup } from "@tpv_pedidos/js/pedido_confirm_popup";
 
 export class PedidoActionButtons extends Component {
     static template = "tpv_pedidos.PedidoActionButtons";
     static props = {
-        pedidoOrder: Object,
-        posConfigId: Number,
-        posConfigName: String,
+        lines: { type: Array },
+        linesToJSON: { type: Function },
+        posConfigId: { type: Number },
+        posConfigName: { type: String },
+        onClear: { type: Function },
     };
 
     setup() {
@@ -21,13 +23,14 @@ export class PedidoActionButtons extends Component {
     }
 
     get hasLines() {
-        return this.props.pedidoOrder.state.lines.length > 0;
+        return this.props.lines.length > 0;
     }
 
     _openConfirmPopup(tipoPedido) {
         this.dialog.add(PedidoConfirmPopup, {
             tipoPedido: tipoPedido,
-            pedidoOrder: this.props.pedidoOrder,
+            lines: this.props.lines,
+            linesToJSON: this.props.linesToJSON,
             posConfigId: this.props.posConfigId,
             posConfigName: this.props.posConfigName,
             onConfirm: async (notaGeneral) => {
@@ -37,7 +40,7 @@ export class PedidoActionButtons extends Component {
     }
 
     async _createPedido(tipoPedido, notaGeneral) {
-        const lines = this.props.pedidoOrder.toJSON;
+        const lines = this.props.linesToJSON();
         try {
             const result = await this.orm.call(
                 "tpv.pedido",
@@ -57,7 +60,7 @@ export class PedidoActionButtons extends Component {
                     _t("Pedido %s creado correctamente", result.name),
                     { type: "success" }
                 );
-                this.props.pedidoOrder.clear();
+                this.props.onClear();
             }
         } catch (error) {
             this.notification.add(

@@ -7,15 +7,14 @@ import { usePos } from "@point_of_sale/app/hooks/pos_hook";
 import { useService } from "@web/core/utils/hooks";
 import { Component, useState, onMounted } from "@odoo/owl";
 import { _t } from "@web/core/l10n/translation";
-import { PedidoOrder } from "@tpv_pedidos/static/src/js/pedido_order";
-import { PedidoActionButtons } from "@tpv_pedidos/static/src/js/pedido_action_buttons";
+import { PedidoActionButtons } from "@tpv_pedidos/js/pedido_action_buttons";
+import { NotaLineaPopup } from "@tpv_pedidos/js/nota_linea_popup";
 import { CategorySelector } from "@point_of_sale/app/components/category_selector/category_selector";
 import { ProductCard } from "@point_of_sale/app/components/product_card/product_card";
 
 export class PedidoScreen extends Component {
     static template = "tpv_pedidos.PedidoScreen";
     static components = {
-        PedidoOrder,
         PedidoActionButtons,
         CategorySelector,
         ProductCard,
@@ -27,13 +26,13 @@ export class PedidoScreen extends Component {
         this.dialog = useService("dialog");
         this.orm = useService("orm");
         this.notification = useService("notification");
-        this.router = useService("pos_router");
 
-        this.pedidoOrder = new PedidoOrder(this, {});
         this.state = useState({
             selectedCategoryId: null,
             notaCategorias: [],
             searchText: "",
+            // Order lines management
+            lines: [],
         });
 
         onMounted(async () => {
@@ -57,10 +56,6 @@ export class PedidoScreen extends Component {
 
     get categories() {
         return this.pos.models["pos.category"].getAll();
-    }
-
-    get rootCategory() {
-        return null;
     }
 
     get products() {
@@ -100,8 +95,82 @@ export class PedidoScreen extends Component {
         this.state.selectedCategoryId = categoryId;
     }
 
+    // --- Order Line Management ---
+
+    addLine(product) {
+        const existingLine = this.state.lines.find(
+            (l) => l.product_id === product.id
+            && !l.nota_linea
+            && !l.nota_categoria_id
+        );
+        if (existingLine) {
+            existingLine.qty += 1;
+        } else {
+            this.state.lines.push({
+                id: Date.now(),
+                product_id: product.id,
+                product_name: product.display_name,
+                qty: 1,
+                precio_unitario: product.lst_price,
+                nota_linea: "",
+                nota_categoria_id: null,
+                nota_categoria_name: "",
+            });
+        }
+        // Force reactivity
+        this.state.lines = [...this.state.lines];
+    }
+
+    removeLine(lineId) {
+        this.state.lines = this.state.lines.filter((l) => l.id !== lineId);
+    }
+
+    updateQty(lineId, delta) {
+        const line = this.state.lines.find((l) => l.id === lineId);
+        if (line) {
+            line.qty = Math.max(0, line.qty + delta);
+            if (line.qty <= 0) {
+                this.removeLine(lineId);
+            } else {
+                this.state.lines = [...this.state.lines];
+            }
+        }
+    }
+
+    openNotaPopup(line) {
+        this.dialog.add(NotaLineaPopup, {
+            line: line,
+            notaCategorias: this.state.notaCategorias,
+            onConfirm: (result) => {
+                line.nota_linea = result.nota_linea;
+                line.nota_categoria_id = result.nota_categoria_id;
+                line.nota_categoria_name = result.nota_categoria_name;
+                this.state.lines = [...this.state.lines];
+            },
+        });
+    }
+
+    clearOrder() {
+        this.state.lines = [];
+    }
+
+    get linesToJSON() {
+        return this.state.lines.map((l) => ({
+            product_id: l.product_id,
+            qty: l.qty,
+            nota_linea: l.nota_linea,
+            nota_categoria_id: l.nota_categoria_id,
+        }));
+    }
+
+    get totalLines() {
+        return this.state.lines.length;
+    }
+
+    // --- Product selection ---
+
     onProductClick(product) {
-        this.pedidoOrder.addLine(product);
+        this.addLine(product);
     }
 
     updateSearch(event) {

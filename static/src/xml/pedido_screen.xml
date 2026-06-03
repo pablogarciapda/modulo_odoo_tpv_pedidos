@@ -15,20 +15,17 @@
             </div>
 
             <!-- Main content: Categories + Products -->
-            <div class="pedido-content d-flex flex-grow-1">
+            <div class="pedido-content d-flex flex-grow-1" style="overflow: hidden;">
                 <!-- Categories sidebar -->
                 <div class="pedido-categories p-2 bg-light border-end" style="width: 280px; overflow-y: auto;">
-                    <!-- Search bar -->
                     <div class="mb-3">
                         <input type="text" class="form-control" placeholder="Buscar producto..."
                             t-model="state.searchText" t-on-input="updateSearch"/>
                     </div>
-                    <!-- All categories button -->
                     <button class="btn btn-outline-primary w-100 mb-2"
                         t-on-click="() => this.selectCategory(null)">
                         Todos
                     </button>
-                    <!-- Category list -->
                     <t t-foreach="categories" t-as="category" t-key="category.id">
                         <button class="btn w-100 mb-1 text-start"
                             t-att-class="state.selectedCategoryId === category.id ? 'btn-primary' : 'btn-outline-secondary'"
@@ -57,12 +54,59 @@
 
                 <!-- Order sidebar -->
                 <div class="pedido-order-sidebar p-3 bg-light border-start" style="width: 320px; overflow-y: auto;">
-                    <h5>Pedido (<span t-esc="pedidoOrder.totalLines"/>)</h5>
-                    <PedidoOrder pedidoOrder="pedidoOrder" notaCategorias="state.notaCategorias"/>
+                    <h5>Pedido (<span t-esc="totalLines"/>)</h5>
+                    <!-- Order lines -->
+                    <div class="pedido-order-lines">
+                        <t t-if="state.lines.length === 0">
+                            <div class="text-center text-muted p-4">
+                                <i class="fa fa-shopping-basket fa-2x mb-2"/>
+                                <p>Añade productos al pedido</p>
+                            </div>
+                        </t>
+                        <t t-foreach="state.lines" t-as="line" t-key="line.id">
+                            <div class="pedido-order-line d-flex align-items-center border rounded mb-2 p-2">
+                                <div class="flex-grow-1">
+                                    <div class="fw-bold" t-esc="line.product_name"/>
+                                    <div class="text-muted small">
+                                        <span t-esc="line.precio_unitario"/> € ×
+                                        <span t-esc="line.qty"/>
+                                    </div>
+                                    <t t-if="line.nota_categoria_name">
+                                        <span class="badge bg-info me-1" t-esc="line.nota_categoria_name"/>
+                                    </t>
+                                    <t t-if="line.nota_linea">
+                                        <div class="text-muted small fst-italic" t-esc="line.nota_linea"/>
+                                    </t>
+                                </div>
+                                <div class="d-flex align-items-center gap-1">
+                                    <button class="btn btn-outline-secondary btn-sm"
+                                        t-on-click="() => this.updateQty(line.id, -1)">
+                                        <i class="fa fa-minus"/>
+                                    </button>
+                                    <span class="fw-bold" t-esc="line.qty"/>
+                                    <button class="btn btn-outline-secondary btn-sm"
+                                        t-on-click="() => this.updateQty(line.id, 1)">
+                                        <i class="fa fa-plus"/>
+                                    </button>
+                                    <button class="btn btn-outline-warning btn-sm"
+                                        t-on-click="() => this.openNotaPopup(line)">
+                                        <i class="fa fa-sticky-note"/>
+                                    </button>
+                                    <button class="btn btn-outline-danger btn-sm"
+                                        t-on-click="() => this.removeLine(line.id)">
+                                        <i class="fa fa-trash"/>
+                                    </button>
+                                </div>
+                            </div>
+                        </t>
+                    </div>
+                    <!-- Action Buttons -->
                     <PedidoActionButtons
-                        pedidoOrder="pedidoOrder"
+                        lines="state.lines"
+                        linesToJSON="linesToJSON"
                         posConfigId="posConfigId"
-                        posConfigName="posConfigName"/>
+                        posConfigName="posConfigName"
+                        onClear="() => this.clearOrder()"/>
                 </div>
             </div>
         </div>

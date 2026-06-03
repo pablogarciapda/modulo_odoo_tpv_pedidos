@@ -10,11 +10,12 @@ export class PedidoConfirmPopup extends Component {
     static components = { Dialog };
     static props = {
         tipoPedido: { type: String },
-        pedidoOrder: Object,
-        posConfigId: Number,
-        posConfigName: String,
-        onConfirm: Function,
-        close: Function,
+        lines: { type: Array },
+        linesToJSON: { type: Function },
+        posConfigId: { type: Number },
+        posConfigName: { type: String },
+        onConfirm: { type: Function },
+        close: { type: Function },
     };
 
     setup() {
@@ -34,7 +35,7 @@ export class PedidoConfirmPopup extends Component {
     }
 
     get lineas() {
-        return this.props.pedidoOrder.state.lines;
+        return this.props.lines;
     }
 
     get totalLineas() {
