@@ -98,8 +98,17 @@ export class PedidoScreen extends Component {
             return [];
         }
 
-        // Filter out products not available in POS (delegates to template's canBeDisplayed)
-        products = products.filter((p) => p.canBeDisplayed !== false);
+        // Filter out products not available in POS
+        // canBeDisplayed delegates to product.template's (active && available_in_pos)
+        // Use a safe check: only exclude if explicitly false
+        products = products.filter((p) => {
+            try {
+                const display = p.canBeDisplayed;
+                return display !== false; // undefined/null/true = show, false = hide
+            } catch {
+                return true; // if error, show product
+            }
+        });
 
         // Filter by search text
         if (this.state.searchText) {

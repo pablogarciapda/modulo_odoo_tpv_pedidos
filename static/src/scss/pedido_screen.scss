@@ -67,15 +67,21 @@
     }
 
     .pedido-categories {
-        min-height: 58px;
+        min-height: 52px;
         display: flex;
         align-items: center;
+        gap: 4px;
+        padding: 6px 8px;
+        overflow-x: auto;
+        overflow-y: hidden;
         scrollbar-width: thin;
+        flex-wrap: nowrap;
 
         .btn {
-            flex-shrink: 0;
+            flex: 0 0 auto;
             font-size: 0.85rem;
             white-space: nowrap;
+            padding: 4px 12px;
         }
     }
 

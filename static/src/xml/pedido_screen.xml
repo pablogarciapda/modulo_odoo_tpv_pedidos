@@ -102,7 +102,7 @@
                         </div>
                     </div>
                     <!-- Category chips -->
-                    <div class="pedido-categories p-2 border-bottom bg-light" style="white-space: nowrap; min-height: 58px; overflow-x: auto; overflow-y: hidden;">
+                    <div class="pedido-categories p-2 border-bottom bg-light">
                         <button class="btn btn-sm me-1"
                             t-att-class="state.selectedCategoryId === null ? 'btn-dark' : 'btn-outline-secondary'"
                             t-on-click="() => this.selectCategory(null)">
