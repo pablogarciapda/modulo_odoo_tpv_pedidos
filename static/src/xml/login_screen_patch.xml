@@ -8,7 +8,7 @@
     <t t-inherit="point_of_sale.LoginScreen" t-inherit-mode="extension">
         <!-- Añadir botón "Pedido a Obrador" junto a "Open Register" -->
         <xpath expr="//button[hasclass('open-register-btn')]" position="after">
-            <button class="open-pedido-btn btn btn-primary btn-lg d-flex flex-column align-items-center flex-grow-1 flex-basis-100 gap-2 p-5 rounded-4 lh-lg"
+            <button class="open-pedido-btn btn btn-outline-primary btn-lg d-flex flex-column align-items-center flex-grow-1 flex-basis-100 gap-2 p-5 rounded-4 lh-lg"
                 t-on-click="() => this.openPedidoObrador()">
                 <i class="fa fa-truck fa-3x" aria-hidden="true"></i>
                 <span class="d-flex flex-grow-1 align-items-center">Pedido a Obrador</span>
