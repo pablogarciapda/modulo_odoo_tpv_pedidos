@@ -242,6 +242,13 @@ class TpvPedido(models.Model):
             'pricelist_id': pricelist.id if pricelist else False,
             'company_id': self.company_id.id or self.env.company.id,
         }
+        # warehouse_id es necesario si sale_stock está instalado
+        if 'stock.warehouse' in self.env.registry:
+            warehouse = self.env['stock.warehouse'].search(
+                [('company_id', '=', self.env.company.id)], limit=1
+            )
+            if warehouse:
+                sale_order_vals['warehouse_id'] = warehouse.id
         if self.nota_general:
             sale_order_vals['note'] = self.nota_general
         try:
