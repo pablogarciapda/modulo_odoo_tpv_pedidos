@@ -28,13 +28,23 @@
         .pedido-order-lines {
             // For Firefox
             scrollbar-width: auto;
-            // For Chrome/Safari
+            // For Chrome/Safari/Edge
             &::-webkit-scrollbar {
-                width: 12px;
+                -webkit-appearance: none;
+                width: 14px;
+                height: 14px;
+            }
+            &::-webkit-scrollbar-track {
+                background: #f1f1f1;
+                border-radius: 7px;
             }
             &::-webkit-scrollbar-thumb {
                 background: #888;
-                border-radius: 6px;
+                border-radius: 7px;
+                min-height: 40px;
+            }
+            &::-webkit-scrollbar-thumb:hover {
+                background: #555;
             }
 
             .pedido-order-line {
@@ -63,8 +73,26 @@
         padding: 10px 12px;
         overflow-x: auto;
         overflow-y: hidden;
-        scrollbar-width: thin;
+        scrollbar-width: auto;
         flex-wrap: nowrap;
+        // For Chrome/Safari/Edge
+        &::-webkit-scrollbar {
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+        }
+        &::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 7px;
+        }
+        &::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 7px;
+            min-height: 40px;
+        }
+        &::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
 
         .btn {
             flex: 0 0 auto;
