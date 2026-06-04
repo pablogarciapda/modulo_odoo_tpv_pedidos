@@ -31,8 +31,6 @@
             'tpv_pedidos/static/src/xml/pedido_screen.xml',
             'tpv_pedidos/static/src/xml/nota_linea_popup.xml',
             'tpv_pedidos/static/src/xml/pedido_confirm_popup.xml',
-        ],
-        'web.assets_backend': [
             'tpv_pedidos/static/src/scss/pedido_screen.scss',
         ],
     },
