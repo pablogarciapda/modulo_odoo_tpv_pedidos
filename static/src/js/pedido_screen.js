@@ -235,21 +235,24 @@ class PedidoScreen extends Component {
             }
         }
 
-        // If we have categories but no colors, fetch colors from backend
-        if (Object.keys(catMap).length > 0 && needsColors) {
-            this.orm.call(
-                "pos.category", "search_read", [[["id", "in", Object.keys(catMap).map(Number)]], ["id", "color"]]
-            ).then((result) => {
-                if (result && result.length) {
-                    for (const c of result) {
-                        if (catMap[c.id]) {
-                            catMap[c.id].color = c.color;
+        // If we have categories, try to get colors or build index directly
+        if (Object.keys(catMap).length > 0) {
+            if (needsColors) {
+                this.orm.call(
+                    "pos.category", "search_read",
+                    [[["id", "in", Object.keys(catMap).map(Number)]], ["id", "color"]]
+                ).then((result) => {
+                    if (result && result.length) {
+                        for (const c of result) {
+                            if (catMap[c.id]) catMap[c.id].color = c.color;
                         }
                     }
-                    this.state.catMap = Object.assign({}, catMap);
-                    this.state.posCategories = [...this.state.posCategories];
-                }
-            }).catch(() => {});
+                    this._buildCategoryIndex(catMap);
+                }).catch(() => {});
+            } else {
+                this._buildCategoryIndex(catMap);
+            }
+            return;
         }
 
         // Method 3: ORM fallback (full load + colors)
@@ -273,7 +276,6 @@ class PedidoScreen extends Component {
             });
             return;
         }
-        this._buildCategoryIndex(catMap);
     }
 
     _buildCategoryIndex(catMap) {
