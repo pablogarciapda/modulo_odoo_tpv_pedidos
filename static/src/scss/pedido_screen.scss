@@ -26,6 +26,17 @@
         flex-shrink: 0;
 
         .pedido-order-lines {
+            // For Firefox
+            scrollbar-width: auto;
+            // For Chrome/Safari
+            &::-webkit-scrollbar {
+                width: 12px;
+            }
+            &::-webkit-scrollbar-thumb {
+                background: #888;
+                border-radius: 6px;
+            }
+
             .pedido-order-line {
                 transition: background-color 0.15s;
                 font-size: 0.95rem;
@@ -119,6 +130,7 @@
 
         .card-body {
             padding: 4px 6px !important;
+            min-height: 2.5em;
 
             .product-name {
                 font-size: 0.75rem;
@@ -127,7 +139,7 @@
                 -webkit-line-clamp: 2;
                 -webkit-box-orient: vertical;
                 overflow: hidden;
-                min-height: 1.15em;
+                min-height: 2.3em;
             }
             .cat-color-strip {
                 height: 4px;
@@ -139,6 +151,15 @@
 
     .pedido-products {
         scrollbar-width: thin;
+
+        .row {
+            .col-4, .col-md-3, .col-xl-2 {
+                display: flex;
+                > .pedido-product-card {
+                    width: 100%;
+                }
+            }
+        }
     }
 }
 

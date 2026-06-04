@@ -5,10 +5,10 @@
             <!-- Header -->
             <div class="pedido-header d-flex justify-content-between align-items-center px-3 py-2 bg-dark text-white">
                 <div class="d-flex gap-2">
-                    <button class="btn btn-light btn-lg text-dark fw-bold" t-on-click="goBack">
+                    <button class="btn btn-outline-light btn-lg fw-bold" t-on-click="goBack">
                         <i class="fa fa-arrow-left me-2"/>Volver
                     </button>
-                    <button class="btn btn-info btn-lg fw-bold text-white"
+                    <button class="btn btn-outline-info btn-lg fw-bold text-white"
                         t-on-click="openPedidoList">
                         <i class="fa fa-list me-2"/>Revisar Pedidos
                     </button>
