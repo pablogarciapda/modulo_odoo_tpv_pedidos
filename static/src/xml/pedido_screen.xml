@@ -101,21 +101,24 @@
                                 placeholder="Buscar producto..." t-model="state.searchText"/>
                         </div>
                     </div>
-                    <!-- Category chips -->
+                    <!-- Category chips (hierarchical) -->
                     <div class="pedido-categories p-2 border-bottom bg-light">
                         <button class="btn btn-sm me-1"
-                            t-att-class="state.selectedCategoryId === null ? 'btn-dark' : 'btn-outline-secondary'"
+                            t-att-class="!state.selectedCategoryId ? 'btn-dark' : 'btn-outline-secondary'"
                             t-on-click="() => this.selectCategory(null)">
                             Todos
                         </button>
-                        <t t-foreach="state.posCategories" t-as="cat" t-key="cat.id">
+                        <t t-foreach="visibleCategories" t-as="cat" t-key="cat.id">
                             <button class="btn btn-sm me-1"
-                                t-att-class="state.selectedCategoryId === cat.id ? 'btn-dark' : 'btn-outline-secondary'"
+                                t-att-class="isCategorySelected(cat.id) ? 'btn-dark' : (isCategoryAncestor(cat.id) ? 'btn-primary' : 'btn-outline-secondary')"
                                 t-on-click="() => this.selectCategory(cat.id)">
                                 <span t-esc="cat.name"/>
+                                <t t-if="isCategorySelected(cat.id) and getCategoryChildren(cat.id).length > 0">
+                                    <i class="fa fa-chevron-down ms-1"/>
+                                </t>
                             </button>
                         </t>
-                        <t t-if="!state.posCategories || state.posCategories.length === 0">
+                        <t t-if="visibleCategories.length === 0">
                             <span class="text-muted small ms-2">Cargando categorías...</span>
                         </t>
                     </div>

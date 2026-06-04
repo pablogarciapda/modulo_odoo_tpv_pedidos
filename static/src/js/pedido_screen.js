@@ -26,6 +26,7 @@ export class PedidoScreen extends Component {
         this.state = useState({
             selectedCategoryId: null,
             posCategories: [],
+            catMap: {},
             notaCategorias: [],
             searchText: "",
             lines: [],
@@ -55,13 +56,199 @@ export class PedidoScreen extends Component {
     }
 
     async _loadPosCategories() {
-        // Method 1: Load from POS models (already loaded in POS app)
+        // Build category map from products (method 1 & 2 combined)
+        let catMap = {};
+        
+        // Method 1: Try POS models
         if (this.pos.models && this.pos.models["pos.category"]) {
             const cats = this.pos.models["pos.category"].getAll();
             if (cats && cats.length) {
-                this.state.posCategories = cats;
-                return;
+                for (const c of cats) {
+                    catMap[c.id] = {
+                        id: c.id,
+                        name: c.name,
+                        parent_id: c.parent_id ? (typeof c.parent_id === 'object' ? c.parent_id.id : c.parent_id) : null,
+                    };
+                }
             }
+        }
+        
+        // Method 2: Extract from products
+        if (Object.keys(catMap).length === 0 && this.pos.models && this.pos.models["product.product"]) {
+            const products = this.pos.models["product.product"].getAll();
+            if (products && products.length) {
+                for (const p of products) {
+                    if (p.pos_categ_ids) {
+                        for (const cat of p.pos_categ_ids) {
+                            const catId = cat && typeof cat === "object" ? cat.id : cat;
+                            const catName = cat && typeof cat === "object" ? (cat.name || "") : "";
+                            const parentId = cat && typeof cat === "object" && cat.parent_id
+                                ? (typeof cat.parent_id === 'object' ? cat.parent_id.id : cat.parent_id)
+                                : null;
+                            if (catId && !catMap[catId]) {
+                                catMap[catId] = { id: catId, name: catName, parent_id: parentId };
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Method 3: ORM fallback
+        if (Object.keys(catMap).length === 0) {
+            try {
+                const result = await this.orm.call(
+                    "pos.category", "search_read", [[], ["id", "name", "parent_id"]]
+                );
+                if (result && result.length) {
+                    for (const c of result) {
+                        catMap[c.id] = {
+                            id: c.id,
+                            name: c.name,
+                            parent_id: c.parent_id ? c.parent_id[0] : null,
+                        };
+                    }
+                }
+            } catch (err) {
+                console.warn("Could not load categories from backend:", err);
+            }
+        }
+
+        // Build parent→children index
+        const catArray = Object.values(catMap);
+        for (const cat of catArray) {
+            cat.children = [];
+        }
+        for (const cat of catArray) {
+            if (cat.parent_id && catMap[cat.parent_id]) {
+                catMap[cat.parent_id].children.push(cat);
+            }
+        }
+        this.state.posCategories = catArray;
+        this.state.catMap = catMap;
+    }
+
+    // --- Hierarchical Category Navigation ---
+
+    get rootCategories() {
+        return this.state.posCategories.filter(c => !c.parent_id);
+    }
+
+    getCategoryChildren(catId) {
+        const cat = this.state.catMap?.[catId];
+        return cat ? cat.children || [] : [];
+    }
+
+    getAncestorChain(catId) {
+        const chain = [];
+        let current = this.state.catMap?.[catId];
+        while (current && current.parent_id) {
+            const parent = this.state.catMap?.[current.parent_id];
+            if (parent) {
+                chain.unshift(parent);
+                current = parent;
+            } else break;
+        }
+        return chain;
+    }
+
+    get visibleCategories() {
+        if (!this.state.selectedCategoryId) {
+            return this.rootCategories; // show only roots
+        }
+        const selected = this.state.catMap?.[this.state.selectedCategoryId];
+        if (!selected) return this.rootCategories;
+
+        // Show: ancestors + selected + siblings + children of selected
+        const ancestors = this.getAncestorChain(this.state.selectedCategoryId);
+        const siblings = selected.parent_id
+            ? this.getCategoryChildren(selected.parent_id)
+            : [];
+        const children = this.getCategoryChildren(this.state.selectedCategoryId);
+
+        const visible = new Set();
+        for (const c of ancestors) visible.add(c.id);
+        for (const c of siblings) visible.add(c.id);
+        if (selected) visible.add(selected.id);
+        for (const c of children) visible.add(c.id);
+
+        return this.state.posCategories.filter(c => visible.has(c.id));
+    }
+
+    getChildCategoryIds(catId) {
+        const ids = [catId];
+        const cat = this.state.catMap?.[catId];
+        if (cat && cat.children) {
+            for (const child of cat.children) {
+                ids.push(...this.getChildCategoryIds(child.id));
+            }
+        }
+        return ids;
+    }
+
+    selectCategory(categoryId) {
+        // Toggle: clicking same category navigates UP to parent
+        if (categoryId === this.state.selectedCategoryId) {
+            const cat = this.state.catMap?.[categoryId];
+            if (cat && cat.parent_id) {
+                this.state.selectedCategoryId = cat.parent_id;
+            } else {
+                this.state.selectedCategoryId = null; // back to root
+            }
+        } else {
+            this.state.selectedCategoryId = categoryId;
+        }
+    }
+
+    // --- Product filtering ---
+
+    get products() {
+        if (!this.pos.models || !this.pos.models["product.product"]) {
+            return [];
+        }
+        let products = this.pos.models["product.product"].getAll();
+        if (!products || !products.length) return [];
+
+        // Filter out products not available in POS
+        products = products.filter((p) => {
+            try {
+                return p.canBeDisplayed !== false;
+            } catch {
+                return true;
+            }
+        });
+
+        // Filter by search text
+        if (this.state.searchText) {
+            const searchLower = this.state.searchText.toLowerCase();
+            products = products.filter((p) =>
+                (p.display_name || "").toLowerCase().includes(searchLower)
+            );
+        }
+
+        // Filter by category AND all its children
+        if (this.state.selectedCategoryId) {
+            const allCatIds = new Set(this.getChildCategoryIds(this.state.selectedCategoryId));
+            products = products.filter((p) =>
+                p.pos_categ_ids &&
+                p.pos_categ_ids.some((cat) => {
+                    const catId = cat && typeof cat === "object" ? cat.id : cat;
+                    return allCatIds.has(catId);
+                })
+            );
+        }
+
+        return products;
+    }
+
+    isCategorySelected(catId) {
+        return this.state.selectedCategoryId === catId;
+    }
+
+    isCategoryAncestor(catId) {
+        if (!this.state.selectedCategoryId) return false;
+        return this.getAncestorChain(this.state.selectedCategoryId).some(c => c.id === catId);
+    }
         }
         // Method 2: Extract unique categories from products
         if (this.pos.models && this.pos.models["product.product"]) {

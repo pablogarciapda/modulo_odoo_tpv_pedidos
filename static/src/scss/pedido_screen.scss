@@ -79,9 +79,16 @@
 
         .btn {
             flex: 0 0 auto;
-            font-size: 0.85rem;
+            font-size: 0.82rem;
             white-space: nowrap;
-            padding: 4px 12px;
+            padding: 4px 10px;
+            transition: all 0.15s;
+        }
+        .btn-primary {
+            opacity: 0.8;
+        }
+        .btn-dark {
+            font-weight: 700;
         }
     }
 
