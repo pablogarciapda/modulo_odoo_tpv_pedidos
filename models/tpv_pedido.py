@@ -192,6 +192,94 @@ class TpvPedido(models.Model):
             'sale_order_id': pedido.sale_order_id.id,
         }
 
+    @api.model
+    def update_pedido_from_pos(self, pedido_id, lines, nota_general=''):
+        """
+        Actualiza un pedido existente desde el frontend POS.
+        Reemplaza líneas y opcionalmente la nota general.
+        """
+        pedido = self.sudo().browse(pedido_id)
+        if not pedido.exists():
+            raise ValidationError(_('El pedido no existe.'))
+        if pedido.state not in ('draft', 'confirmed'):
+            raise ValidationError(
+                _('Solo se pueden modificar pedidos en borrador o confirmados.')
+            )
+
+        # Reemplazar líneas
+        line_vals = []
+        for line in lines:
+            line_vals.append((0, 0, {
+                'product_id': line.get('product_id'),
+                'qty': line.get('qty', 1.0),
+                'nota_linea': line.get('nota_linea', ''),
+                'nota_categoria_id': line.get('nota_categoria_id') or False,
+            }))
+
+        pedido.line_ids.unlink()
+        pedido.write({
+            'line_ids': line_vals,
+            'nota_general': nota_general,
+        })
+
+        # Si estaba confirmado, mantener confirmado;
+        # si estaba en borrador, confirmar automáticamente
+        if pedido.state == 'draft':
+            pedido.action_confirm()
+
+        return {
+            'pedido_id': pedido.id,
+            'name': pedido.name,
+            'sale_order_id': pedido.sale_order_id.id if pedido.sale_order_id else False,
+        }
+
+    @api.model
+    def cancel_pedido_from_pos(self, pedido_id):
+        """Cancela un pedido desde el frontend POS."""
+        pedido = self.sudo().browse(pedido_id)
+        if not pedido.exists():
+            raise ValidationError(_('El pedido no existe.'))
+        pedido.action_cancel()
+        return {
+            'pedido_id': pedido.id,
+            'state': pedido.state,
+        }
+
+    @api.model
+    def get_pedidos_today_for_pos(self, pos_config_id):
+        """
+        Devuelve los pedidos del día para una tienda específica.
+        """
+        from datetime import date
+        domain = [
+            ('date_pedido', '=', date.today()),
+            ('pos_config_id', '=', pos_config_id),
+            ('state', 'in', ['draft', 'confirmed']),
+        ]
+        pedidos = self.search(domain, order='id desc')
+        result = []
+        for p in pedidos:
+            lines_data = []
+            for l in p.line_ids:
+                lines_data.append({
+                    'id': l.id,
+                    'product_id': l.product_id.id,
+                    'product_name': l.product_id.display_name,
+                    'qty': l.qty,
+                    'nota_linea': l.nota_linea or '',
+                    'nota_categoria_id': l.nota_categoria_id.id if l.nota_categoria_id else False,
+                    'nota_categoria_name': l.nota_categoria_id.name if l.nota_categoria_id else '',
+                })
+            result.append({
+                'id': p.id,
+                'name': p.name,
+                'tipo_pedido': p.tipo_pedido,
+                'state': p.state,
+                'nota_general': p.nota_general or '',
+                'line_ids': lines_data,
+            })
+        return result
+
     def action_done(self):
         for rec in self:
             rec.write({'state': 'done'})

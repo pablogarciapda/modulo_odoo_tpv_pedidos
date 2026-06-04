@@ -45,11 +45,11 @@
     }
 
     .pedido-categories {
-        min-height: 64px;
+        min-height: 72px;
         display: flex;
         align-items: center;
-        gap: 6px;
-        padding: 8px 10px;
+        gap: 8px;
+        padding: 10px 12px;
         overflow-x: auto;
         overflow-y: hidden;
         scrollbar-width: thin;
@@ -57,28 +57,30 @@
 
         .btn {
             flex: 0 0 auto;
-            font-size: 0.9rem;
+            font-size: 0.95rem;
             white-space: nowrap;
-            padding: 10px 16px;
+            padding: 12px 18px;
             transition: all 0.15s;
-            border-radius: 8px;
-            min-height: 42px;
+            border-radius: 10px;
+            min-height: 48px;
+            border-width: 2px;
         }
         .btn-dark {
             font-weight: 700;
             background-color: #212529;
+            border-color: #212529;
         }
         .btn-primary {
-            opacity: 0.85;
+            opacity: 0.9;
             background-color: #0d6efd;
             border-color: #0d6efd;
         }
         .cat-color-bar {
             display: inline-block;
-            width: 6px;
-            height: 20px;
-            border-radius: 3px;
-            margin-right: 6px;
+            width: 8px;
+            height: 24px;
+            border-radius: 4px;
+            margin-right: 8px;
             vertical-align: middle;
         }
     }

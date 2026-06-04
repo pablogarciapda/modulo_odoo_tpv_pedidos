@@ -47,3 +47,16 @@
 | 16 | `static/src/js/pedido_screen.js` | 167-221 | `pos.models` podría no estar disponible sin sesión POS abierta |
 | 17 | `static/src/scss/pedido_screen.scss` | - | `@each` loop incompatible con Sass de Odoo 19 | ✅ Clases explícitas |
 | 18 | `static/src/scss/pedido_screen.scss` | - | Código duplicado por ediciones parciales | ✅ Archivo reescrito completo |
+
+## Rama feat/gestion-pedidos-informes
+
+| # | Cambio | Archivo | Estado |
+|---|--------|---------|--------|
+| 1 | `update_pedido_from_pos` | `models/tpv_pedido.py` | ✅ |
+| 2 | `cancel_pedido_from_pos` | `models/tpv_pedido.py` | ✅ |
+| 3 | `get_pedidos_today_for_pos` | `models/tpv_pedido.py` | ✅ |
+| 4 | `PedidoListPopup` component | `static/src/js/pedido_screen.js` | ✅ |
+| 5 | Modo edición (Actualizar/Cancelar) | `static/src/js/pedido_screen.js` | ✅ |
+| 6 | Colores categoría desde backend ORM | `static/src/js/pedido_screen.js` | ✅ |
+| 7 | Botón "Revisar Pedidos" | `static/src/xml/pedido_screen.xml` | ✅ |
+| 8 | Touch UI (48px botones, 8px gap) | `static/src/scss/pedido_screen.scss` | ✅ |

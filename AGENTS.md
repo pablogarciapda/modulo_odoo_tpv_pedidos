@@ -21,6 +21,8 @@ Pedidos desde tiendas (TPV) al obrador. Dos flujos: **ENCARGO** (prioritario, pa
 12. Al crear `sale.order` programáticamente: usar `sudo()`, incluir `product_uom_id`, `pricelist_id`, `warehouse_id`, `partner_invoice_id`, `partner_shipping_id`, `tax_ids`.
 13. **Categorías**: usar `getAllChildren()` para incluir subcategorías en el filtro de productos.
 14. **ir.logging**: tiene `_allow_sudo_commands = False` — NO usar `.sudo().create()` en él, usar `_logger.error()`.
+15. **Colores de categoría**: El modelo `PosCategory` en JS del POS NO carga `color` por defecto. Hacer llamada ORM adicional para obtenerlos. Fallback: `(cat.id % 12)`.
+16. **Edición de pedidos**: Al cargar un pedido existente, los botones cambian a "Actualizar" / "Cancelar Pedido". El método `update_pedido_from_pos` reemplaza líneas y reconfirma si estaba en borrador.
 
 ### Modelo de Datos
 
@@ -140,6 +142,14 @@ El reporte QWeb (`report_pedido_obrador.xml`) tiene dos secciones dentro de `t-c
 - [x] Reporte QWeb (resumen por productos + detalle por tienda)
 - [x] Tests básicos
 - [x] Icono del módulo
+- [x] Colores de categoría cargados desde backend
+- [x] Gestión de pedidos: listar, editar, cancelar
+- [x] Touch UI optimizada (botones 48px+)
+- [ ] Informes web con filtros (pendiente)
+
+## Rama activa
+- `feat/gestion-pedidos-informes` — gestión de pedidos + colores + UI táctil
+- `fix/js-imports-pedidoregistry` — ya mergeada a main ✅
 
 ## Errores Encontrados y Solucionados
 
