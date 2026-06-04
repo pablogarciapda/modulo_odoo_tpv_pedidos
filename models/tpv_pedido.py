@@ -410,7 +410,7 @@ class TpvPedido(models.Model):
         from datetime import datetime, timedelta
         now = datetime.now()
         current_hour = now.hour + now.minute / 60.0
-        print_hour = config.print_hour or 2.0
+        print_hour = int(config.print_hour or '2')
 
         if abs(current_hour - print_hour) >= 0.5:
             return  # Not time yet

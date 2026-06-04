@@ -14,5 +14,9 @@ class TpvPedidoConfig(models.Model):
         ('esc_pos', 'ESC/POS (Termica Ticket)'),
         ('network', 'Impresora de Red (CUPS/IP)'),
     ], string='Tipo de Impresora', default='esc_pos')
-    print_hour = fields.Float(string='Hora de impresion', default=2.0,
-        help='Hora del dia en que se imprimira el resumen (0-23, ej: 2.0 = 02:00)')
+    print_hour = fields.Selection(
+        [(str(h), '{:02d}:00'.format(h)) for h in range(24)],
+        string='Hora de impresion',
+        default='2',
+        help='Hora del dia en que se imprimira automaticamente el resumen de pedidos.',
+    )
