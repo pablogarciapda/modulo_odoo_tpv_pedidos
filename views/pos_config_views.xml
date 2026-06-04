@@ -45,6 +45,14 @@
                                     widget="radio"/>
                             </div>
                         </div>
+                        <div class="row">
+                            <div class="col-lg-4 o_light_label">
+                                <label for="tpv_pedido_print_hour"/>
+                            </div>
+                            <div class="col-lg-8">
+                                <field name="tpv_pedido_print_hour" widget="float"/>
+                            </div>
+                        </div>
                     </div>
                 </setting>
             </xpath>

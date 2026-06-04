@@ -25,3 +25,8 @@ class PosConfigInherit(models.Model):
         default='esc_pos',
         help='Tipo de impresora conectada en red.',
     )
+    tpv_pedido_print_hour = fields.Float(
+        string='Hora de impresión',
+        default=2.0,
+        help='Hora del día en que se imprimirá automáticamente el resumen de pedidos en el obrador (0-23).',
+    )

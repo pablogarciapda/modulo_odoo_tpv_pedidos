@@ -400,36 +400,47 @@ class TpvPedido(models.Model):
     @api.model
     def _cron_imprimir_resumen_obrador(self):
         """
-        Cron job ejecutado a las 02:00. Busca los pedidos confirmados del día
-        anterior y envía el resumen a la impresora configurada en el pos.config.
+        Cron job. Busca configuraciones POS con impresora configurada
+        y que su hora de impresión coincida con la hora actual.
+        Para cada una, imprime el resumen de pedidos del día anterior.
         """
-        from datetime import timedelta
-        ayer = fields.Date.context_today(self) - timedelta(days=1)
-        pedidos = self.search([
-            ('state', '=', 'confirmed'),
-            ('date_pedido', '=', ayer),
-        ])
-        if not pedidos:
-            return
-        # Buscar la configuración POS que tiene la impresora del obrador
-        pos_config = self.env['pos.config'].search([
+        from datetime import datetime, timedelta
+
+        now = datetime.now()
+        current_hour = now.hour + now.minute / 60.0
+
+        pos_configs = self.env['pos.config'].search([
             ('tpv_pedido_printer_ip', '!=', False),
-        ], limit=1)
-        if not pos_config:
-            return
-        # Generar el reporte PDF
-        report = self.env['ir.actions.report']._get_report(
-            'tpv_pedidos.action_report_pedido_obrador'
-        )
-        pdf_content, content_type = self.env['ir.actions.report']._render_qweb_pdf(
-            'tpv_pedidos.action_report_pedido_obrador',
-            pedidos.ids,
-        )
-        # Enviar a la impresora según el tipo configurado
+        ])
+
+        for pos_config in pos_configs:
+            print_hour = pos_config.tpv_pedido_print_hour or 2.0
+            # Check if current time matches print hour (with 30 min tolerance)
+            if abs(current_hour - print_hour) < 0.5:
+                ayer = fields.Date.context_today(self) - timedelta(days=1)
+                pedidos = self.search([
+                    ('state', '=', 'confirmed'),
+                    ('date_pedido', '=', ayer),
+                    ('pos_config_id', '=', pos_config.id),
+                ])
+                if not pedidos:
+                    continue
+                self._do_print_for_config(pos_config, pedidos, ayer)
+
+    def _do_print_for_config(self, pos_config, pedidos, fecha):
+        """
+        Extraído del cron. Imprime el resumen de pedidos para una config
+        específica, usando el tipo de impresora configurado (ESC/POS o red).
+        """
         if pos_config.tpv_pedido_printer_type == 'esc_pos':
-            self._enviar_esc_pos(pos_config, pedidos, ayer)
+            self._enviar_esc_pos(pos_config, pedidos, fecha)
         else:
-            self._enviar_impresora_red(pos_config, pdf_content, ayer)
+            # Generar el reporte PDF para impresora de red
+            pdf_content, _content_type = self.env['ir.actions.report']._render_qweb_pdf(
+                'tpv_pedidos.action_report_pedido_obrador',
+                pedidos.ids,
+            )
+            self._enviar_impresora_red(pos_config, pdf_content, fecha)
 
     def _enviar_impresora_red(self, pos_config, pdf_content, fecha):
         """Envía el PDF a una impresora de red vía CUPS o direct IP."""
