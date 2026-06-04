@@ -4,12 +4,24 @@
         <div class="pedido-screen d-flex flex-column h-100">
             <!-- Header -->
             <div class="pedido-header d-flex justify-content-between align-items-center px-3 py-2 bg-dark text-white">
-                <button class="btn btn-light btn-lg text-dark fw-bold" t-on-click="goBack">
-                    <i class="fa fa-arrow-left me-2"/>Volver
-                </button>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-light btn-lg text-dark fw-bold" t-on-click="goBack">
+                        <i class="fa fa-arrow-left me-2"/>Volver
+                    </button>
+                    <button class="btn btn-info btn-lg fw-bold text-white"
+                        t-on-click="openPedidoList">
+                        <i class="fa fa-list me-2"/>Revisar Pedidos
+                    </button>
+                </div>
                 <h4 class="mb-0 text-white fw-bold">
-                    <i class="fa fa-truck me-2 text-white"/>Pedido a Obrador —
-                    <t t-esc="posConfigName"/>
+                    <i class="fa fa-truck me-2 text-white"/>
+                    <t t-if="isEditing">
+                        Editando: <t t-esc="state.editingPedidoName"/>
+                    </t>
+                    <t t-else="">
+                        Pedido a Obrador —
+                        <t t-esc="posConfigName"/>
+                    </t>
                 </h4>
                 <div></div>
             </div>
@@ -69,24 +81,55 @@
                             </div>
                         </t>
                     </div>
-                    <!-- Action buttons at bottom of left panel -->
+                    <!-- Action buttons -->
                     <div class="p-2 border-top bg-white">
-                        <t t-if="state.lines.length > 0">
+                        <t t-if="isEditing">
+                            <!-- Edit mode buttons -->
+                            <div class="mb-2">
+                                <label class="form-label fw-bold small">Nota general</label>
+                                <textarea class="form-control" rows="2"
+                                    t-model="state.nota_general" placeholder="Nota general..."/>
+                            </div>
                             <div class="d-flex gap-2">
-                                <button class="btn btn-warning flex-grow-1 fw-bold py-3"
-                                    t-on-click="() => this.openConfirmPopup('encargo')">
-                                    <i class="fa fa-star me-2"/>ENCARGO
+                                <button class="btn btn-success flex-grow-1 fw-bold py-3"
+                                    t-att-disabled="state.lines.length === 0 ? 'disabled' : undefined"
+                                    t-on-click="updatePedido">
+                                    <i class="fa fa-save me-2"/>Actualizar
                                 </button>
-                                <button class="btn btn-primary flex-grow-1 fw-bold py-3"
-                                    t-on-click="() => this.openConfirmPopup('pedido_tienda')">
-                                    <i class="fa fa-truck me-2"/>PEDIDO TIENDA
+                                <button class="btn btn-outline-danger fw-bold py-3"
+                                    t-on-click="cancelPedido">
+                                    <i class="fa fa-ban me-2"/>Cancelar Pedido
+                                </button>
+                                <button class="btn btn-outline-secondary py-3"
+                                    t-on-click="cancelEditing">
+                                    <i class="fa fa-times"/>
                                 </button>
                             </div>
                         </t>
                         <t t-else="">
-                            <button class="btn btn-secondary w-100 py-2" disabled="disabled">
-                                <i class="fa fa-shopping-cart me-2"/>Añade productos para continuar
-                            </button>
+                            <!-- Create mode buttons -->
+                            <t t-if="state.lines.length > 0">
+                                <div class="mb-2">
+                                    <label class="form-label fw-bold small">Nota general</label>
+                                    <textarea class="form-control" rows="2"
+                                        t-model="state.nota_general" placeholder="Nota general..."/>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-warning flex-grow-1 fw-bold py-3"
+                                        t-on-click="() => this.openConfirmPopup('encargo')">
+                                        <i class="fa fa-star me-2"/>ENCARGO
+                                    </button>
+                                    <button class="btn btn-primary flex-grow-1 fw-bold py-3"
+                                        t-on-click="() => this.openConfirmPopup('pedido_tienda')">
+                                        <i class="fa fa-truck me-2"/>PEDIDO TIENDA
+                                    </button>
+                                </div>
+                            </t>
+                            <t t-else="">
+                                <button class="btn btn-secondary w-100 py-2" disabled="disabled">
+                                    <i class="fa fa-shopping-cart me-2"/>Añade productos para continuar
+                                </button>
+                            </t>
                         </t>
                     </div>
                 </div>
@@ -161,5 +204,50 @@
                 </div>
             </div>
         </div>
+    </t>
+
+    <!-- ============================================================ -->
+    <!-- PedidoListPopup -->
+    <!-- ============================================================ -->
+    <t t-name="tpv_pedidos.PedidoListPopup">
+        <Dialog size="'lg'">
+            <t t-set-slot="header">
+                <h4 class="modal-title"><i class="fa fa-list me-2"/>Pedidos del día</h4>
+            </t>
+            <div>
+                <t t-if="props.pedidos.length === 0">
+                    <p class="text-muted text-center p-4">No hay pedidos para hoy</p>
+                </t>
+                <t t-else="">
+                    <div class="list-group" style="max-height: 400px; overflow-y: auto;">
+                        <t t-foreach="props.pedidos" t-as="p" t-key="p.id">
+                            <button class="list-group-item list-group-item-action d-flex justify-content-between align-items-start"
+                                t-on-click="() => this.selectPedido(p)">
+                                <div>
+                                    <div class="fw-bold">
+                                        <span t-esc="p.name"/>
+                                        <span class="badge ms-2"
+                                            t-att-class="p.tipo_pedido === 'encargo' ? 'bg-warning text-dark' : 'bg-primary'"
+                                            t-esc="p.tipo_pedido === 'encargo' ? 'ENCARGO' : 'TIENDA'"/>
+                                    </div>
+                                    <div class="small text-muted">
+                                        <t t-esc="p.line_ids.length"/> líneas
+                                        <t t-if="p.nota_general">
+                                            — <span t-esc="p.nota_general"/>
+                                        </t>
+                                    </div>
+                                </div>
+                                <span class="badge"
+                                    t-att-class="p.state === 'confirmed' ? 'bg-success' : 'bg-secondary'"
+                                    t-esc="p.state"/>
+                            </button>
+                        </t>
+                    </div>
+                </t>
+            </div>
+            <t t-set-slot="footer">
+                <button class="btn btn-secondary" t-on-click="cancel">Cerrar</button>
+            </t>
+        </Dialog>
     </t>
 </templates>

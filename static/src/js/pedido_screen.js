@@ -70,6 +70,7 @@ class PedidoConfirmPopup extends Component {
     static props = {
         tipoPedido: { type: String },
         lines: { type: Array },
+        notaGeneral: { type: String, optional: true },
         linesToJSON: { type: Function },
         posConfigId: { type: Number },
         posConfigName: { type: String },
@@ -79,7 +80,7 @@ class PedidoConfirmPopup extends Component {
 
     setup() {
         this.state = useState({
-            nota_general: "",
+            nota_general: this.props.notaGeneral || "",
         });
     }
 
@@ -112,6 +113,28 @@ class PedidoConfirmPopup extends Component {
 }
 
 // ============================================================
+// PedidoListPopup
+// ============================================================
+class PedidoListPopup extends Component {
+    static template = "tpv_pedidos.PedidoListPopup";
+    static components = { Dialog };
+    static props = {
+        pedidos: { type: Array },
+        onSelect: { type: Function },
+        close: { type: Function },
+    };
+
+    selectPedido(pedido) {
+        this.props.onSelect(pedido);
+        this.props.close();
+    }
+
+    cancel() {
+        this.props.close();
+    }
+}
+
+// ============================================================
 // PedidoScreen
 // ============================================================
 class PedidoScreen extends Component {
@@ -119,6 +142,7 @@ class PedidoScreen extends Component {
     static components = {
         NotaLineaPopup,
         PedidoConfirmPopup,
+        PedidoListPopup,
     };
     static props = {};
 
@@ -135,6 +159,9 @@ class PedidoScreen extends Component {
             notaCategorias: [],
             searchText: "",
             lines: [],
+            editingPedidoId: null,
+            editingPedidoName: "",
+            nota_general: "",
         });
 
         onMounted(() => {
@@ -162,6 +189,7 @@ class PedidoScreen extends Component {
 
     _loadPosCategories() {
         let catMap = {};
+        let needsColors = false;
 
         // Method 1: Try POS models
         if (this.pos.models && this.pos.models["pos.category"]) {
@@ -174,6 +202,7 @@ class PedidoScreen extends Component {
                         color: c.color,
                         parent_id: c.parent_id ? (typeof c.parent_id === 'object' ? c.parent_id.id : c.parent_id) : null,
                     };
+                    if (c.color === undefined) needsColors = true;
                 }
             }
         }
@@ -191,12 +220,14 @@ class PedidoScreen extends Component {
                                 ? (typeof cat.parent_id === 'object' ? cat.parent_id.id : cat.parent_id)
                                 : null;
                             if (catId && !catMap[catId]) {
+                                const col = cat && typeof cat === "object" ? cat.color : undefined;
                                 catMap[catId] = {
                                     id: catId,
                                     name: catName,
-                                    color: cat && typeof cat === "object" ? cat.color : undefined,
+                                    color: col,
                                     parent_id: parentId,
                                 };
+                                if (col === undefined) needsColors = true;
                             }
                         }
                     }
@@ -204,7 +235,24 @@ class PedidoScreen extends Component {
             }
         }
 
-        // Method 3: ORM fallback
+        // If we have categories but no colors, fetch colors from backend
+        if (Object.keys(catMap).length > 0 && needsColors) {
+            this.orm.call(
+                "pos.category", "search_read", [[["id", "in", Object.keys(catMap).map(Number)]], ["id", "color"]]
+            ).then((result) => {
+                if (result && result.length) {
+                    for (const c of result) {
+                        if (catMap[c.id]) {
+                            catMap[c.id].color = c.color;
+                        }
+                    }
+                    this.state.catMap = Object.assign({}, catMap);
+                    this.state.posCategories = [...this.state.posCategories];
+                }
+            }).catch(() => {});
+        }
+
+        // Method 3: ORM fallback (full load + colors)
         if (Object.keys(catMap).length === 0) {
             this.orm.call(
                 "pos.category", "search_read", [[], ["id", "name", "parent_id", "color"]]
@@ -448,6 +496,7 @@ class PedidoScreen extends Component {
         this.dialog.add(PedidoConfirmPopup, {
             tipoPedido: tipoPedido,
             lines: this.state.lines,
+            notaGeneral: this.state.nota_general,
             linesToJSON: () => this.state.lines.map((l) => ({
                 product_id: l.product_id,
                 qty: l.qty,
@@ -487,6 +536,7 @@ class PedidoScreen extends Component {
                     _t("Pedido %s creado correctamente", result.name),
                     { type: "success" }
                 );
+                this.state.nota_general = "";
                 this.state.lines = [];
             } else {
                 this.notification.add(
@@ -515,6 +565,125 @@ class PedidoScreen extends Component {
 
     onProductClick(product) {
         this.addLine(product);
+    }
+
+    // --- Pedido management (edit/cancel) ---
+
+    openPedidoList() {
+        this.orm.call(
+            "tpv.pedido", "get_pedidos_today_for_pos",
+            [this.pos.config.id]
+        ).then((pedidos) => {
+            this.dialog.add(PedidoListPopup, {
+                pedidos: pedidos,
+                onSelect: (pedido) => {
+                    this._loadPedidoForEdit(pedido);
+                },
+            });
+        }).catch((err) => {
+            this.notification.add("Error al cargar pedidos", { type: "danger" });
+        });
+    }
+
+    _loadPedidoForEdit(pedido) {
+        // Clear current order
+        this.state.lines = [];
+        // Load pedido lines
+        for (const l of pedido.line_ids) {
+            this.state.lines.push({
+                id: Date.now() + Math.random(),
+                product_id: l.product_id,
+                product_name: l.product_name,
+                qty: l.qty,
+                precio_unitario: 0,
+                nota_linea: l.nota_linea || "",
+                nota_categoria_id: l.nota_categoria_id || null,
+                nota_categoria_name: l.nota_categoria_name || "",
+            });
+        }
+        this.state.editingPedidoId = pedido.id;
+        this.state.editingPedidoName = pedido.name;
+        this.state.nota_general = pedido.nota_general || "";
+
+        // Re-fetch prices from pos.models
+        if (this.pos.models && this.pos.models["product.product"]) {
+            for (const line of this.state.lines) {
+                const prod = this.pos.models["product.product"].get(line.product_id);
+                if (prod) {
+                    line.precio_unitario = prod.lst_price || 0;
+                }
+            }
+        }
+        this.state.lines = [...this.state.lines];
+    }
+
+    get isEditing() {
+        return this.state.editingPedidoId !== null;
+    }
+
+    updatePedido() {
+        if (this.state.lines.length === 0) return;
+        const lines = this.state.lines.map((l) => ({
+            product_id: l.product_id,
+            qty: l.qty,
+            nota_linea: l.nota_linea,
+            nota_categoria_id: l.nota_categoria_id,
+        }));
+        this.orm.call(
+            "tpv.pedido", "update_pedido_from_pos", [],
+            {
+                pedido_id: this.state.editingPedidoId,
+                lines: lines,
+                nota_general: this.state.nota_general || "",
+            }
+        ).then((result) => {
+            if (result && result.name) {
+                this.notification.add(
+                    "Pedido " + result.name + " actualizado",
+                    { type: "success" }
+                );
+                this.state.editingPedidoId = null;
+                this.state.editingPedidoName = "";
+                this.state.lines = [];
+            }
+        }).catch((error) => {
+            this.notification.add(
+                "Error: " + (error.message || error.data?.message || error),
+                { type: "danger" }
+            );
+        });
+    }
+
+    cancelPedido() {
+        if (!this.state.editingPedidoId) return;
+        this.orm.call(
+            "tpv.pedido", "cancel_pedido_from_pos",
+            [this.state.editingPedidoId]
+        ).then((result) => {
+            if (result && result.state === 'cancelled') {
+                this.notification.add(
+                    "Pedido cancelado",
+                    { type: "success" }
+                );
+                this.state.editingPedidoId = null;
+                this.state.editingPedidoName = "";
+                this.state.nota_general = "";
+                this.state.lines = [];
+            }
+        }).catch((error) => {
+            this.notification.add(
+                "Error: " + (error.message || error.data?.message || error),
+                { type: "danger" }
+            );
+        });
+    }
+
+    cancelEditing() {
+        // Cancel edit without server call - just clear
+        this.state.editingPedidoId = null;
+        this.state.editingPedidoName = "";
+        this.state.nota_general = "";
+        this.state.lines = [];
     }
 }
 
