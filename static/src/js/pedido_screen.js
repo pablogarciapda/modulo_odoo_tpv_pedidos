@@ -55,7 +55,7 @@ export class PedidoScreen extends Component {
     }
 
     async _loadPosCategories() {
-        // Try POS models first
+        // Method 1: Load from POS models (already loaded in POS app)
         if (this.pos.models && this.pos.models["pos.category"]) {
             const cats = this.pos.models["pos.category"].getAll();
             if (cats && cats.length) {
@@ -63,7 +63,30 @@ export class PedidoScreen extends Component {
                 return;
             }
         }
-        // Fallback: load from backend
+        // Method 2: Extract unique categories from products
+        if (this.pos.models && this.pos.models["product.product"]) {
+            const products = this.pos.models["product.product"].getAll();
+            if (products && products.length) {
+                const catMap = {};
+                for (const p of products) {
+                    if (p.pos_categ_ids) {
+                        for (const cat of p.pos_categ_ids) {
+                            const catId = cat && typeof cat === "object" ? cat.id : cat;
+                            const catName = cat && typeof cat === "object" ? (cat.name || "") : "";
+                            if (catId && !catMap[catId]) {
+                                catMap[catId] = { id: catId, name: catName };
+                            }
+                        }
+                    }
+                }
+                const cats = Object.values(catMap);
+                if (cats.length) {
+                    this.state.posCategories = cats;
+                    return;
+                }
+            }
+        }
+        // Method 3: Fallback - try ORM (may fail for cashier users)
         try {
             const result = await this.orm.call(
                 "pos.category", "search_read", [[], ["id", "name"]]
@@ -72,7 +95,7 @@ export class PedidoScreen extends Component {
                 this.state.posCategories = result;
             }
         } catch (err) {
-            console.warn("Could not load categories:", err);
+            console.warn("Could not load categories from backend:", err);
         }
     }
 

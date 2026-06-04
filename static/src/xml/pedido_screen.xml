@@ -108,7 +108,7 @@
                             t-on-click="() => this.selectCategory(null)">
                             Todos
                         </button>
-                        <t t-foreach="state.posCategories" t-as="cat" t-key="cat_index">
+                        <t t-foreach="state.posCategories" t-as="cat" t-key="cat.id">
                             <button class="btn btn-sm me-1"
                                 t-att-class="state.selectedCategoryId === cat.id ? 'btn-dark' : 'btn-outline-secondary'"
                                 t-on-click="() => this.selectCategory(cat.id)">
