@@ -24,10 +24,11 @@
         action="tpv_nota_categoria_action"
         sequence="20"/>
 
-    <!-- Submenú Configuración -->
+    <!-- Submenú Configuración Impresora -->
     <menuitem id="menu_tpv_pedidos_config"
-        name="Configuración"
+        name="Configuración Impresora"
         parent="menu_tpv_pedidos_root"
-        sequence="30"
+        action="tpv_pedido_config_action"
+        sequence="25"
         groups="point_of_sale.group_pos_manager"/>
 </odoo>

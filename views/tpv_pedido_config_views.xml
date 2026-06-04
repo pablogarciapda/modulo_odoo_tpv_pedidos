@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="tpv_pedido_config_view_form" model="ir.ui.view">
+        <field name="name">tpv.pedido.config.form</field>
+        <field name="model">tpv.pedido.config</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>Configuracion de Impresion del Obrador</h1>
+                    </div>
+                    <group string="Impresora">
+                        <group>
+                            <field name="printer_ip" placeholder="192.168.1.100"/>
+                            <field name="printer_port"/>
+                        </group>
+                        <group>
+                            <field name="printer_type" widget="radio"/>
+                        </group>
+                    </group>
+                    <group string="Programacion">
+                        <group>
+                            <field name="print_hour"/>
+                            <p class="text-muted">Hora del dia en que se imprimira automaticamente el resumen de pedidos.</p>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="tpv_pedido_config_action" model="ir.actions.act_window">
+        <field name="name">Configuracion Impresora</field>
+        <field name="res_model">tpv.pedido.config</field>
+        <field name="view_mode">form</field>
+        <field name="help" type="html">
+            <p>Configure la impresora del obrador y la hora de impresion automatica.</p>
+        </field>
+    </record>
+</odoo>

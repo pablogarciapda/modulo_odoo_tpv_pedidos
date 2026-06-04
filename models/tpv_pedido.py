@@ -400,10 +400,21 @@ class TpvPedido(models.Model):
     @api.model
     def _cron_imprimir_resumen_obrador(self):
         """
-        Cron job ejecutado a las 02:00. Busca los pedidos confirmados del día
-        anterior y envía el resumen a la impresora configurada en el pos.config.
+        Cron job diario. Lee la configuracion central de impresora del obrador
+        y, si es la hora configurada, imprime el resumen de pedidos del dia anterior.
         """
-        from datetime import timedelta
+        config = self.env['tpv.pedido.config'].search([], limit=1)
+        if not config or not config.printer_ip:
+            return
+
+        from datetime import datetime, timedelta
+        now = datetime.now()
+        current_hour = now.hour + now.minute / 60.0
+        print_hour = config.print_hour or 2.0
+
+        if abs(current_hour - print_hour) >= 0.5:
+            return  # Not time yet
+
         ayer = fields.Date.context_today(self) - timedelta(days=1)
         pedidos = self.search([
             ('state', '=', 'confirmed'),
@@ -411,35 +422,29 @@ class TpvPedido(models.Model):
         ])
         if not pedidos:
             return
-        # Buscar la configuración POS que tiene la impresora del obrador
-        pos_config = self.env['pos.config'].search([
-            ('tpv_pedido_printer_ip', '!=', False),
-        ], limit=1)
-        if not pos_config:
-            return
-        # Generar el reporte PDF
-        report = self.env['ir.actions.report']._get_report(
-            'tpv_pedidos.action_report_pedido_obrador'
-        )
-        pdf_content, content_type = self.env['ir.actions.report']._render_qweb_pdf(
-            'tpv_pedidos.action_report_pedido_obrador',
-            pedidos.ids,
-        )
-        # Enviar a la impresora según el tipo configurado
-        if pos_config.tpv_pedido_printer_type == 'esc_pos':
-            self._enviar_esc_pos(pos_config, pedidos, ayer)
-        else:
-            self._enviar_impresora_red(pos_config, pdf_content, ayer)
 
-    def _enviar_impresora_red(self, pos_config, pdf_content, fecha):
+        self._do_print(config, pedidos, ayer)
+
+    def _do_print(self, config, pedidos, fecha):
+        """Send the printout using the configured printer."""
+        if config.printer_type == 'esc_pos':
+            self._enviar_esc_pos(config, pedidos, fecha)
+        else:
+            pdf_content, content_type = self.env['ir.actions.report']._render_qweb_pdf(
+                'tpv_pedidos.action_report_pedido_obrador',
+                pedidos.ids,
+            )
+            self._enviar_impresora_red(config, pdf_content, fecha)
+
+    def _enviar_impresora_red(self, config, pdf_content, fecha):
         """Envía el PDF a una impresora de red vía CUPS o direct IP."""
         import socket
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.settimeout(10)
             sock.connect((
-                pos_config.tpv_pedido_printer_ip,
-                pos_config.tpv_pedido_printer_port or 9100,
+                config.printer_ip,
+                config.printer_port or 9100,
             ))
             # Enviar el PDF directamente (impresoras de red modernas
             # aceptan PDF en el stream)
@@ -449,11 +454,11 @@ class TpvPedido(models.Model):
             # Log del error pero no detener el cron
             _logger.error(
                 'Error conectando a impresora de red %s:%s',
-                pos_config.tpv_pedido_printer_ip,
-                pos_config.tpv_pedido_printer_port,
+                config.printer_ip,
+                config.printer_port,
             )
 
-    def _enviar_esc_pos(self, pos_config, pedidos, fecha):
+    def _enviar_esc_pos(self, config, pedidos, fecha):
         """Genera comandos ESC/POS para impresora térmica y los envía por socket."""
         import socket
         resumen = pedidos.get_resumen_por_producto(date_from=fecha, date_to=fecha)
@@ -528,16 +533,16 @@ class TpvPedido(models.Model):
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.settimeout(10)
             sock.connect((
-                pos_config.tpv_pedido_printer_ip,
-                pos_config.tpv_pedido_printer_port or 9100,
+                config.printer_ip,
+                config.printer_port or 9100,
             ))
             sock.sendall(cmds)
             sock.close()
         except (socket.timeout, socket.error, OSError):
             _logger.error(
                 'Error conectando a impresora ESC/POS %s:%s',
-                pos_config.tpv_pedido_printer_ip,
-                pos_config.tpv_pedido_printer_port,
+                config.printer_ip,
+                config.printer_port,
             )
 
     def get_detalle_por_tienda(self, date_from=None, date_to=None):
