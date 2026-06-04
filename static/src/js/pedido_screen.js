@@ -171,6 +171,7 @@ class PedidoScreen extends Component {
                     catMap[c.id] = {
                         id: c.id,
                         name: c.name,
+                        color: c.color,
                         parent_id: c.parent_id ? (typeof c.parent_id === 'object' ? c.parent_id.id : c.parent_id) : null,
                     };
                 }
@@ -190,7 +191,12 @@ class PedidoScreen extends Component {
                                 ? (typeof cat.parent_id === 'object' ? cat.parent_id.id : cat.parent_id)
                                 : null;
                             if (catId && !catMap[catId]) {
-                                catMap[catId] = { id: catId, name: catName, parent_id: parentId };
+                                catMap[catId] = {
+                                    id: catId,
+                                    name: catName,
+                                    color: cat && typeof cat === "object" ? cat.color : undefined,
+                                    parent_id: parentId,
+                                };
                             }
                         }
                     }
@@ -201,13 +207,14 @@ class PedidoScreen extends Component {
         // Method 3: ORM fallback
         if (Object.keys(catMap).length === 0) {
             this.orm.call(
-                "pos.category", "search_read", [[], ["id", "name", "parent_id"]]
+                "pos.category", "search_read", [[], ["id", "name", "parent_id", "color"]]
             ).then((result) => {
                 if (result && result.length) {
                     for (const c of result) {
                         catMap[c.id] = {
                             id: c.id,
                             name: c.name,
+                            color: c.color,
                             parent_id: c.parent_id ? c.parent_id[0] : null,
                         };
                     }
@@ -321,6 +328,29 @@ class PedidoScreen extends Component {
         const base = "/web/image?model=product.product&field=image_128&id=";
         const unique = product.write_date ? "&unique=" + product.write_date : "";
         return base + product.id + unique;
+    }
+
+    // Get the color of the deepest category for a product
+    getProductColor(product) {
+        if (!product || !product.pos_categ_ids || !product.pos_categ_ids.length) return "11";
+        // Find deepest category (most child, lowest in hierarchy)
+        let bestCat = null;
+        let bestDepth = -1;
+        for (const catRef of product.pos_categ_ids) {
+            const catId = catRef && typeof catRef === "object" ? catRef.id : catRef;
+            const cat = this.state.catMap?.[catId];
+            if (cat) {
+                const depth = this.getAncestorChain(catId).length;
+                if (depth > bestDepth) {
+                    bestDepth = depth;
+                    bestCat = cat;
+                } else if (bestCat === null) {
+                    bestCat = cat;
+                }
+            }
+        }
+        const color = bestCat ? bestCat.color : undefined;
+        return color !== undefined && color !== null ? String(color) : "11";
     }
 
     // --- Product filtering ---

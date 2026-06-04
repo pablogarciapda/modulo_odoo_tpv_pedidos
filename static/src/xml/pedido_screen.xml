@@ -101,7 +101,7 @@
                                 placeholder="Buscar producto..." t-model="state.searchText"/>
                         </div>
                     </div>
-                    <!-- Category chips (hierarchical) -->
+                    <!-- Category chips (hierarchical, touch-optimized) -->
                     <div class="pedido-categories p-2 border-bottom bg-light">
                         <button class="btn btn-sm me-1"
                             t-att-class="!state.selectedCategoryId ? 'btn-dark' : 'btn-outline-secondary'"
@@ -109,9 +109,11 @@
                             Todos
                         </button>
                         <t t-foreach="visibleCategories" t-as="cat" t-key="cat.id">
-                            <button class="btn btn-sm me-1"
-                                t-att-class="isCategorySelected(cat.id) ? 'btn-dark' : (isCategoryAncestor(cat.id) ? 'btn-primary' : 'btn-outline-secondary')"
+                            <button class="btn btn-sm me-1 btn-cat"
+                                t-att-class="'o_tpv_color_' + (cat.color !== undefined ? cat.color : 11) + ' ' + (isCategorySelected(cat.id) ? 'btn-dark' : (isCategoryAncestor(cat.id) ? 'btn-primary' : 'btn-outline-secondary'))"
                                 t-on-click="() => this.selectCategory(cat.id)">
+                                <span class="cat-color-bar"
+                                    t-att-class="'o_tpv_color_' + (cat.color !== undefined ? cat.color : 11)"/>
                                 <span t-esc="cat.name"/>
                                 <t t-if="isCategorySelected(cat.id) and getCategoryChildren(cat.id).length > 0">
                                     <i class="fa fa-chevron-down ms-1"/>
@@ -136,18 +138,19 @@
                                     <div class="col-4 col-md-3 col-xl-2">
                                         <div class="card pedido-product-card h-100"
                                             t-on-click="() => this.onProductClick(p)">
-                                            <div class="pedido-product-img-container d-flex align-items-center justify-content-center bg-light"
-                                                style="aspect-ratio: 1; overflow: hidden;">
+                                            <div class="pedido-product-img-container d-flex align-items-center justify-content-center bg-light">
                                                 <t t-if="this.getProductImageUrl(p)">
                                                     <img t-att-src="this.getProductImageUrl(p)"
-                                                        class="img-fluid p-1" alt="" style="max-height: 100%; object-fit: contain;"/>
+                                                        class="img-fluid" alt="" draggable="false"/>
                                                 </t>
                                                 <t t-else="">
                                                     <i class="fa fa-box fa-3x text-muted"/>
                                                 </t>
                                             </div>
                                             <div class="card-body p-1 text-center">
-                                                <div class="small lh-sm fw-bold" t-esc="p.display_name"/>
+                                                <div class="product-name fw-bold" t-esc="p.display_name"/>
+                                                <div class="cat-color-strip"
+                                                    t-att-class="'o_tpv_color_' + this.getProductColor(p)"/>
                                             </div>
                                         </div>
                                     </div>
