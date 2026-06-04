@@ -26,15 +26,24 @@
         flex-shrink: 0;
 
         .pedido-order-lines {
+            overflow-y: auto;
             // For Firefox
             scrollbar-width: auto;
+            scrollbar-color: #888 #f1f1f1;
             // For Chrome/Safari
             &::-webkit-scrollbar {
-                width: 12px;
+                width: 14px;
+            }
+            &::-webkit-scrollbar-track {
+                background: #f1f1f1;
+                border-radius: 7px;
             }
             &::-webkit-scrollbar-thumb {
                 background: #888;
-                border-radius: 6px;
+                border-radius: 7px;
+            }
+            &::-webkit-scrollbar-thumb:hover {
+                background: #555;
             }
 
             .pedido-order-line {
@@ -150,7 +159,24 @@
     }
 
     .pedido-products {
-        scrollbar-width: thin;
+        overflow-y: auto;
+        scrollbar-width: auto;
+        scrollbar-color: #888 #f1f1f1;
+
+        &::-webkit-scrollbar {
+            width: 14px;
+        }
+        &::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 7px;
+        }
+        &::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 7px;
+        }
+        &::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
 
         .row {
             .col-4, .col-md-3, .col-xl-2 {
@@ -227,8 +253,7 @@
 
 // LoginScreen extra button on POS
 .open-pedido-btn {
-    border: 2px solid #0d6efd;
-    color: #0d6efd;
+    border-width: 2px;
     transition: all 0.2s;
 
     &:hover {

@@ -236,22 +236,35 @@ class PedidoScreen extends Component {
         }
 
         // If we have categories, try to get colors or build index directly
+        // Validate categories against backend (fixes deleted categories still showing)
         if (Object.keys(catMap).length > 0) {
-            if (needsColors) {
-                this.orm.call(
-                    "pos.category", "search_read",
-                    [[["id", "in", Object.keys(catMap).map(Number)]], ["id", "color"]]
-                ).then((result) => {
-                    if (result && result.length) {
-                        for (const c of result) {
-                            if (catMap[c.id]) catMap[c.id].color = c.color;
+            this.orm.call(
+                "pos.category", "search_read", [[], ["id", "color"]]
+            ).then((result) => {
+                if (result && result.length) {
+                    const validIds = new Set();
+                    for (const c of result) {
+                        validIds.add(c.id);
+                    }
+                    // Remove deleted categories
+                    for (const catId of Object.keys(catMap)) {
+                        if (!validIds.has(Number(catId))) {
+                            delete catMap[catId];
                         }
                     }
-                    this._buildCategoryIndex(catMap);
-                }).catch(() => {});
-            } else {
+                    // Update colors from backend
+                    if (needsColors) {
+                        for (const c of result) {
+                            if (catMap[c.id] && c.color !== undefined) {
+                                catMap[c.id].color = c.color;
+                            }
+                        }
+                    }
+                }
                 this._buildCategoryIndex(catMap);
-            }
+            }).catch(() => {
+                this._buildCategoryIndex(catMap);
+            });
             return;
         }
 
