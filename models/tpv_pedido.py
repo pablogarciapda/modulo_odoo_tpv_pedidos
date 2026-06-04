@@ -228,7 +228,7 @@ class TpvPedido(models.Model):
                 'product_uom_qty': line.qty,
                 'name': line._get_sale_line_name(),
                 'price_unit': line.precio_unitario,
-                'product_uom': line.product_uom_id.id,
+                'product_uom_id': line.product_uom_id.id,
             }))
         sale_order_vals = {
             'partner_id': partner.id,
