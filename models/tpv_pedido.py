@@ -110,17 +110,17 @@ class TpvPedido(models.Model):
 
     def action_cancel(self):
         for rec in self:
-            if rec.sale_order_id and rec.sale_order_id.state in (
-                'sale', 'done'
-            ):
-                raise ValidationError(
-                    _(
-                        'No se puede cancelar un pedido cuyo pedido de venta '
-                        'ya está confirmado o hecho.'
-                    )
-                )
             if rec.sale_order_id:
-                rec.sale_order_id.action_cancel()
+                so = rec.sale_order_id
+                # Cancel the sale.order if it's in sale state
+                if so.state == 'sale':
+                    so.sudo().action_cancel()
+                elif so.state == 'draft' or so.state == 'sent':
+                    so.sudo().action_cancel()
+                elif so.state == 'done':
+                    raise ValidationError(
+                        _('No se puede cancelar un pedido cuyo pedido de venta ya está hecho.')
+                    )
             rec.write({'state': 'cancelled'})
 
     def action_draft(self):
