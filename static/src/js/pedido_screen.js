@@ -1,15 +1,120 @@
-/* tpv_pedidos - PedidoScreen
- * Pantalla tipo TPV para seleccionar productos y crear pedidos al obrador.
+/* tpv_pedidos - NotaLineaPopup + PedidoConfirmPopup + PedidoScreen
+ * Fusionado en un solo archivo para evitar imports @tpv_pedidos que el bundler no resuelve.
  */
 import { registry } from "@web/core/registry";
 import { usePos } from "@point_of_sale/app/hooks/pos_hook";
 import { useService } from "@web/core/utils/hooks";
 import { Component, useState, onMounted } from "@odoo/owl";
 import { _t } from "@web/core/l10n/translation";
-import { NotaLineaPopup } from "@tpv_pedidos/js/nota_linea_popup";
-import { PedidoConfirmPopup } from "@tpv_pedidos/js/pedido_confirm_popup";
+import { Dialog } from "@web/core/dialog/dialog";
 
-export class PedidoScreen extends Component {
+// ============================================================
+// NotaLineaPopup
+// ============================================================
+class NotaLineaPopup extends Component {
+    static template = "tpv_pedidos.NotaLineaPopup";
+    static components = { Dialog };
+    static props = {
+        line: Object,
+        notaCategorias: { type: Array, optional: true },
+        close: Function,
+        onConfirm: Function,
+    };
+
+    setup() {
+        this.state = useState({
+            nota_linea: this.props.line.nota_linea || "",
+            nota_categoria_id: this.props.line.nota_categoria_id || null,
+        });
+    }
+
+    get categorias() {
+        return this.props.notaCategorias || [];
+    }
+
+    selectCategoria(cat) {
+        this.state.nota_categoria_id = cat.id;
+    }
+
+    confirm() {
+        if (this.state.nota_categoria_id) {
+            const cat = this.categorias.find((c) => c.id === this.state.nota_categoria_id);
+            if (cat) {
+                this.props.onConfirm({
+                    nota_linea: this.state.nota_linea,
+                    nota_categoria_id: this.state.nota_categoria_id,
+                    nota_categoria_name: cat.name || "",
+                });
+            }
+        } else {
+            this.props.onConfirm({
+                nota_linea: this.state.nota_linea,
+                nota_categoria_id: null,
+                nota_categoria_name: "",
+            });
+        }
+        this.props.close();
+    }
+
+    cancel() {
+        this.props.close();
+    }
+}
+
+// ============================================================
+// PedidoConfirmPopup
+// ============================================================
+class PedidoConfirmPopup extends Component {
+    static template = "tpv_pedidos.PedidoConfirmPopup";
+    static components = { Dialog };
+    static props = {
+        tipoPedido: { type: String },
+        lines: { type: Array },
+        linesToJSON: { type: Function },
+        posConfigId: { type: Number },
+        posConfigName: { type: String },
+        onConfirm: { type: Function },
+        close: { type: Function },
+    };
+
+    setup() {
+        this.state = useState({
+            nota_general: "",
+        });
+    }
+
+    get isEncargo() {
+        return this.props.tipoPedido === "encargo";
+    }
+
+    get titulo() {
+        return this.isEncargo
+            ? _t("Confirmar Encargo")
+            : _t("Confirmar Pedido Tienda");
+    }
+
+    get lineas() {
+        return this.props.lines;
+    }
+
+    get totalLineas() {
+        return this.lineas.length;
+    }
+
+    confirm() {
+        this.props.onConfirm(this.state.nota_general);
+        this.props.close();
+    }
+
+    cancel() {
+        this.props.close();
+    }
+}
+
+// ============================================================
+// PedidoScreen
+// ============================================================
+class PedidoScreen extends Component {
     static template = "tpv_pedidos.PedidoScreen";
     static components = {
         NotaLineaPopup,
@@ -56,9 +161,8 @@ export class PedidoScreen extends Component {
     }
 
     _loadPosCategories() {
-        // Build category map from products (method 1 & 2 combined)
         let catMap = {};
-        
+
         // Method 1: Try POS models
         if (this.pos.models && this.pos.models["pos.category"]) {
             const cats = this.pos.models["pos.category"].getAll();
@@ -72,7 +176,7 @@ export class PedidoScreen extends Component {
                 }
             }
         }
-        
+
         // Method 2: Extract from products
         if (Object.keys(catMap).length === 0 && this.pos.models && this.pos.models["product.product"]) {
             const products = this.pos.models["product.product"].getAll();
@@ -131,7 +235,7 @@ export class PedidoScreen extends Component {
         this.state.catMap = catMap;
     }
 
-    // --- Hierarchical Category Navigation ---
+    // --- Category navigation ---
 
     get rootCategories() {
         return this.state.posCategories.filter(c => !c.parent_id);
@@ -157,12 +261,11 @@ export class PedidoScreen extends Component {
 
     get visibleCategories() {
         if (!this.state.selectedCategoryId) {
-            return this.rootCategories; // show only roots
+            return this.rootCategories;
         }
         const selected = this.state.catMap?.[this.state.selectedCategoryId];
         if (!selected) return this.rootCategories;
 
-        // Show: ancestors + selected + siblings + children of selected
         const ancestors = this.getAncestorChain(this.state.selectedCategoryId);
         const siblings = selected.parent_id
             ? this.getCategoryChildren(selected.parent_id)
@@ -190,17 +293,34 @@ export class PedidoScreen extends Component {
     }
 
     selectCategory(categoryId) {
-        // Toggle: clicking same category navigates UP to parent
         if (categoryId === this.state.selectedCategoryId) {
             const cat = this.state.catMap?.[categoryId];
             if (cat && cat.parent_id) {
                 this.state.selectedCategoryId = cat.parent_id;
             } else {
-                this.state.selectedCategoryId = null; // back to root
+                this.state.selectedCategoryId = null;
             }
         } else {
             this.state.selectedCategoryId = categoryId;
         }
+    }
+
+    isCategorySelected(catId) {
+        return this.state.selectedCategoryId === catId;
+    }
+
+    isCategoryAncestor(catId) {
+        if (!this.state.selectedCategoryId) return false;
+        return this.getAncestorChain(this.state.selectedCategoryId).some(c => c.id === catId);
+    }
+
+    // --- Product image URL ---
+
+    getProductImageUrl(product) {
+        if (!product) return false;
+        const base = "/web/image?model=product.product&field=image_128&id=";
+        const unique = product.write_date ? "&unique=" + product.write_date : "";
+        return base + product.id + unique;
     }
 
     // --- Product filtering ---
@@ -212,16 +332,14 @@ export class PedidoScreen extends Component {
         let products = this.pos.models["product.product"].getAll();
         if (!products || !products.length) return [];
 
-        // Filter out products not available in POS
         products = products.filter((p) => {
             try {
                 return p.canBeDisplayed !== false;
-            } catch {
+            } catch (e) {
                 return true;
             }
         });
 
-        // Filter by search text
         if (this.state.searchText) {
             const searchLower = this.state.searchText.toLowerCase();
             products = products.filter((p) =>
@@ -229,7 +347,6 @@ export class PedidoScreen extends Component {
             );
         }
 
-        // Filter by category AND all its children
         if (this.state.selectedCategoryId) {
             const allCatIds = new Set(this.getChildCategoryIds(this.state.selectedCategoryId));
             products = products.filter((p) =>
@@ -242,111 +359,6 @@ export class PedidoScreen extends Component {
         }
 
         return products;
-    }
-
-    isCategorySelected(catId) {
-        return this.state.selectedCategoryId === catId;
-    }
-
-    isCategoryAncestor(catId) {
-        if (!this.state.selectedCategoryId) return false;
-        return this.getAncestorChain(this.state.selectedCategoryId).some(c => c.id === catId);
-    }
-        }
-        // Method 2: Extract unique categories from products
-        if (this.pos.models && this.pos.models["product.product"]) {
-            const products = this.pos.models["product.product"].getAll();
-            if (products && products.length) {
-                const catMap = {};
-                for (const p of products) {
-                    if (p.pos_categ_ids) {
-                        for (const cat of p.pos_categ_ids) {
-                            const catId = cat && typeof cat === "object" ? cat.id : cat;
-                            const catName = cat && typeof cat === "object" ? (cat.name || "") : "";
-                            if (catId && !catMap[catId]) {
-                                catMap[catId] = { id: catId, name: catName };
-                            }
-                        }
-                    }
-                }
-                const cats = Object.values(catMap);
-                if (cats.length) {
-                    this.state.posCategories = cats;
-                    return;
-                }
-            }
-        }
-        // (method 3 handled above with proper async pattern)
-    }
-
-    // --- Product image URL ---
-
-    getProductImageUrl(product) {
-        if (!product) return false;
-        // Use the same pattern as POS ProductScreen:
-        // /web/image?model=product.product&field=image_128&id=X&unique=write_date
-        const base = "/web/image?model=product.product&field=image_128&id=";
-        const unique = product.write_date ? `&unique=${product.write_date}` : "";
-        return `${base}${product.id}${unique}`;
-    }
-
-    // --- Product filtering ---
-
-    get products() {
-        if (!this.pos.models || !this.pos.models["product.product"]) {
-            return [];
-        }
-        let products = this.pos.models["product.product"].getAll();
-        if (!products || !products.length) {
-            return [];
-        }
-
-        // Filter out products not available in POS
-        // canBeDisplayed delegates to product.template's (active && available_in_pos)
-        // Use a safe check: only exclude if explicitly false
-        products = products.filter((p) => {
-            try {
-                const display = p.canBeDisplayed;
-                return display !== false; // undefined/null/true = show, false = hide
-            } catch {
-                return true; // if error, show product
-            }
-        });
-
-        // Filter by search text
-        if (this.state.searchText) {
-            const searchLower = this.state.searchText.toLowerCase();
-            products = products.filter((p) =>
-                (p.display_name || "").toLowerCase().includes(searchLower)
-            );
-        }
-
-        // Filter by category using getBy (indexed lookup) like POS does
-        if (this.state.selectedCategoryId) {
-            // getBy returns products that have this category ID in pos_categ_ids
-            const catProducts = this.pos.models["product.product"].getBy(
-                "pos_categ_ids", this.state.selectedCategoryId
-            );
-            if (catProducts && catProducts.length) {
-                const catProductIds = new Set(catProducts.map((p) => p.id));
-                products = products.filter((p) => catProductIds.has(p.id));
-            } else {
-                // Fallback: manual filter (pos_categ_ids are objects with .id)
-                products = products.filter((p) =>
-                    p.pos_categ_ids &&
-                    p.pos_categ_ids.some((cat) => {
-                        const catId = cat && typeof cat === "object" ? cat.id : cat;
-                        return catId === this.state.selectedCategoryId;
-                    })
-                );
-            }
-        }
-
-        return products;
-    }
-
-    selectCategory(categoryId) {
-        this.state.selectedCategoryId = categoryId;
     }
 
     // --- Order management ---
@@ -476,6 +488,6 @@ export class PedidoScreen extends Component {
 registry.category("pos_pages").add("PedidoScreen", {
     name: "PedidoScreen",
     component: PedidoScreen,
-    route: `/pos/ui/${odoo.pos_config_id}/pedido`,
+    route: "/pos/ui/" + odoo.pos_config_id + "/pedido",
     params: {},
 });

@@ -27,8 +27,6 @@
         'point_of_sale._assets_pos': [
             'tpv_pedidos/static/src/js/login_screen_patch.js',
             'tpv_pedidos/static/src/js/pedido_screen.js',
-            'tpv_pedidos/static/src/js/nota_linea_popup.js',
-            'tpv_pedidos/static/src/js/pedido_confirm_popup.js',
             'tpv_pedidos/static/src/xml/login_screen_patch.xml',
             'tpv_pedidos/static/src/xml/pedido_screen.xml',
             'tpv_pedidos/static/src/xml/nota_linea_popup.xml',
