@@ -1,7 +1,7 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_tpv_pedido_user,tpv.pedido.user,model_tpv_pedido,point_of_sale.group_pos_user,1,0,1,0
+access_tpv_pedido_user,tpv.pedido.user,model_tpv_pedido,point_of_sale.group_pos_user,1,1,1,0
 access_tpv_pedido_manager,tpv.pedido.manager,model_tpv_pedido,point_of_sale.group_pos_manager,1,1,1,1
-access_tpv_pedido_linea_user,tpv.pedido.linea.user,model_tpv_pedido_linea,point_of_sale.group_pos_user,1,0,1,0
+access_tpv_pedido_linea_user,tpv.pedido.linea.user,model_tpv_pedido_linea,point_of_sale.group_pos_user,1,1,1,0
 access_tpv_pedido_linea_manager,tpv.pedido.linea.manager,model_tpv_pedido_linea,point_of_sale.group_pos_manager,1,1,1,1
 access_tpv_nota_categoria_user,tpv.nota.categoria.user,model_tpv_nota_categoria,point_of_sale.group_pos_user,1,0,0,0
 access_tpv_nota_categoria_manager,tpv.nota.categoria.manager,model_tpv_nota_categoria,point_of_sale.group_pos_manager,1,1,1,1
