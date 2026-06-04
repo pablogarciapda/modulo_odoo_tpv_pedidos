@@ -32,30 +32,30 @@ export class PedidoScreen extends Component {
             lines: [],
         });
 
-        onMounted(async () => {
-            await this._loadData();
+        onMounted(() => {
+            this._loadData();
         });
     }
 
-    async _loadData() {
-        // Load note categories from backend
-        try {
-            const cats = await this.orm.call(
-                "tpv.nota.categoria",
-                "search_read",
-                [[["activa", "=", true]], ["id", "name", "sequence"]],
-                { order: "sequence, name" }
-            );
-            this.state.notaCategorias = cats || [];
-        } catch (err) {
-            console.error("Error loading nota categorias:", err);
-        }
-
-        // Load POS categories (from backend for reliability)
-        await this._loadPosCategories();
+    _loadData() {
+        this._loadNotaCategorias();
+        this._loadPosCategories();
     }
 
-    async _loadPosCategories() {
+    _loadNotaCategorias() {
+        this.orm.call(
+            "tpv.nota.categoria",
+            "search_read",
+            [[["activa", "=", true]], ["id", "name", "sequence"]],
+            { order: "sequence, name" }
+        ).then((cats) => {
+            this.state.notaCategorias = cats || [];
+        }).catch((err) => {
+            console.error("Error loading nota categorias:", err);
+        });
+    }
+
+    _loadPosCategories() {
         // Build category map from products (method 1 & 2 combined)
         let catMap = {};
         
@@ -96,10 +96,9 @@ export class PedidoScreen extends Component {
 
         // Method 3: ORM fallback
         if (Object.keys(catMap).length === 0) {
-            try {
-                const result = await this.orm.call(
-                    "pos.category", "search_read", [[], ["id", "name", "parent_id"]]
-                );
+            this.orm.call(
+                "pos.category", "search_read", [[], ["id", "name", "parent_id"]]
+            ).then((result) => {
                 if (result && result.length) {
                     for (const c of result) {
                         catMap[c.id] = {
@@ -108,13 +107,17 @@ export class PedidoScreen extends Component {
                             parent_id: c.parent_id ? c.parent_id[0] : null,
                         };
                     }
+                    this._buildCategoryIndex(catMap);
                 }
-            } catch (err) {
+            }).catch((err) => {
                 console.warn("Could not load categories from backend:", err);
-            }
+            });
+            return;
         }
+        this._buildCategoryIndex(catMap);
+    }
 
-        // Build parent→children index
+    _buildCategoryIndex(catMap) {
         const catArray = Object.values(catMap);
         for (const cat of catArray) {
             cat.children = [];
@@ -273,17 +276,7 @@ export class PedidoScreen extends Component {
                 }
             }
         }
-        // Method 3: Fallback - try ORM (may fail for cashier users)
-        try {
-            const result = await this.orm.call(
-                "pos.category", "search_read", [[], ["id", "name"]]
-            );
-            if (result && result.length) {
-                this.state.posCategories = result;
-            }
-        } catch (err) {
-            console.warn("Could not load categories from backend:", err);
-        }
+        // (method 3 handled above with proper async pattern)
     }
 
     // --- Product image URL ---
@@ -421,31 +414,30 @@ export class PedidoScreen extends Component {
             })),
             posConfigId: this.pos.config.id,
             posConfigName: this.pos.config.name,
-            onConfirm: async (notaGeneral) => {
-                await this._createPedido(tipoPedido, notaGeneral);
+            onConfirm: (notaGeneral) => {
+                this._createPedido(tipoPedido, notaGeneral);
             },
         });
     }
 
-    async _createPedido(tipoPedido, notaGeneral) {
+    _createPedido(tipoPedido, notaGeneral) {
         const lines = this.state.lines.map((l) => ({
             product_id: l.product_id,
             qty: l.qty,
             nota_linea: l.nota_linea,
             nota_categoria_id: l.nota_categoria_id,
         }));
-        try {
-            const result = await this.orm.call(
-                "tpv.pedido",
-                "create_pedido_from_pos",
-                [],
-                {
-                    pos_config_id: this.pos.config.id,
-                    tipo_pedido: tipoPedido,
-                    lines: lines,
-                    nota_general: notaGeneral,
-                }
-            );
+        this.orm.call(
+            "tpv.pedido",
+            "create_pedido_from_pos",
+            [],
+            {
+                pos_config_id: this.pos.config.id,
+                tipo_pedido: tipoPedido,
+                lines: lines,
+                nota_general: notaGeneral,
+            }
+        ).then((result) => {
             if (result && result.error) {
                 this.notification.add(String(result.error), { type: "danger" });
             } else if (result && result.name) {
@@ -460,12 +452,12 @@ export class PedidoScreen extends Component {
                     { type: "warning" }
                 );
             }
-        } catch (error) {
+        }).catch((error) => {
             this.notification.add(
                 _t("Error: %s", error.message || error.data?.message || JSON.stringify(error)),
                 { type: "danger" }
             );
-        }
+        });
     }
 
     get totalLines() {
