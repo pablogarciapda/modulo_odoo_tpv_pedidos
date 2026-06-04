@@ -1,7 +1,11 @@
 # -*- coding: utf-8 -*-
 
+import logging
+
 from odoo import api, fields, models, _
 from odoo.exceptions import ValidationError
+
+_logger = logging.getLogger(__name__)
 
 
 class TpvPedido(models.Model):
@@ -202,6 +206,21 @@ class TpvPedido(models.Model):
             partner = self.env['res.partner'].search(
                 [('name', '=', 'OBRADOR')], limit=1
             )
+        if not partner:
+            raise ValidationError(
+                _('No se encontró el contacto OBRADOR. '
+                  'Verifica que los datos del módulo se hayan cargado.')
+            )
+
+        # Pricelist: usar el del partner o buscar uno disponible
+        pricelist = partner.property_product_pricelist
+        if not pricelist:
+            pricelist = self.env['product.pricelist'].sudo().search(
+                [('company_id', '=', self.env.company.id)], limit=1
+            )
+        if not pricelist:
+            pricelist = self.env['product.pricelist'].sudo().search([], limit=1)
+
         order_lines = []
         for line in self.line_ids:
             order_lines.append((0, 0, {
@@ -209,21 +228,45 @@ class TpvPedido(models.Model):
                 'product_uom_qty': line.qty,
                 'name': line._get_sale_line_name(),
                 'price_unit': line.precio_unitario,
+                'product_uom_id': line.product_uom_id.id,
+                'tax_ids': [(6, 0, line.product_id.taxes_id.ids)],
             }))
         sale_order_vals = {
             'partner_id': partner.id,
+            'partner_invoice_id': partner.id,
+            'partner_shipping_id': partner.id,
             'origin': self.name,
             'tpv_pedido_id': self.id,
             'tipo_pedido_tag': self.tipo_pedido,
             'date_order': fields.Datetime.now(),
             'order_line': order_lines,
+            'pricelist_id': pricelist.id if pricelist else False,
+            'company_id': self.company_id.id or self.env.company.id,
         }
+        # warehouse_id es necesario si sale_stock está instalado
+        if 'stock.warehouse' in self.env.registry:
+            warehouse = self.env['stock.warehouse'].search(
+                [('company_id', '=', self.env.company.id)], limit=1
+            )
+            if warehouse:
+                sale_order_vals['warehouse_id'] = warehouse.id
         if self.nota_general:
             sale_order_vals['note'] = self.nota_general
-        sale_order = self.env['sale.order'].create(sale_order_vals)
-        sale_order.action_confirm()
-        self.write({'sale_order_id': sale_order.id})
-        return sale_order
+        try:
+            _logger.info('Creando sale.order para pedido %s con vals: %s',
+                         self.name, sale_order_vals)
+            sale_order = self.env['sale.order'].sudo().create(sale_order_vals)
+            sale_order.sudo().action_confirm()
+            self.write({'sale_order_id': sale_order.id})
+            return sale_order
+        except Exception as e:
+            _logger.error(
+                'Error creando sale.order para pedido %s: %s',
+                self.name, str(e), exc_info=True
+            )
+            raise ValidationError(
+                _('Error al crear el pedido de venta (consulta los logs del servidor): %s') % str(e)
+            )
 
     def get_resumen_por_producto(self, date_from=None, date_to=None):
         """
@@ -316,17 +359,11 @@ class TpvPedido(models.Model):
             sock.close()
         except (socket.timeout, socket.error, OSError):
             # Log del error pero no detener el cron
-            self.env['ir.logging'].sudo().create({
-                'name': 'tpv_pedidos',
-                'type': 'server',
-                'dbname': self.env.cr.dbname,
-                'level': 'ERROR',
-                'message': (
-                    'Error conectando a impresora de red %s:%s' %
-                    (pos_config.tpv_pedido_printer_ip,
-                     pos_config.tpv_pedido_printer_port)
-                ),
-            })
+            _logger.error(
+                'Error conectando a impresora de red %s:%s',
+                pos_config.tpv_pedido_printer_ip,
+                pos_config.tpv_pedido_printer_port,
+            )
 
     def _enviar_esc_pos(self, pos_config, pedidos, fecha):
         """Genera comandos ESC/POS para impresora térmica y los envía por socket."""
@@ -409,17 +446,11 @@ class TpvPedido(models.Model):
             sock.sendall(cmds)
             sock.close()
         except (socket.timeout, socket.error, OSError):
-            self.env['ir.logging'].sudo().create({
-                'name': 'tpv_pedidos',
-                'type': 'server',
-                'dbname': self.env.cr.dbname,
-                'level': 'ERROR',
-                'message': (
-                    'Error conectando a impresora ESC/POS %s:%s' %
-                    (pos_config.tpv_pedido_printer_ip,
-                     pos_config.tpv_pedido_printer_port)
-                ),
-            })
+            _logger.error(
+                'Error conectando a impresora ESC/POS %s:%s',
+                pos_config.tpv_pedido_printer_ip,
+                pos_config.tpv_pedido_printer_port,
+            )
 
     def get_detalle_por_tienda(self, date_from=None, date_to=None):
         """
