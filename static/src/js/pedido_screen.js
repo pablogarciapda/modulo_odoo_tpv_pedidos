@@ -50,9 +50,29 @@ export class PedidoScreen extends Component {
             console.error("Error loading nota categorias:", err);
         }
 
-        // Load POS categories into state for reactivity
+        // Load POS categories (from backend for reliability)
+        await this._loadPosCategories();
+    }
+
+    async _loadPosCategories() {
+        // Try POS models first
         if (this.pos.models && this.pos.models["pos.category"]) {
-            this.state.posCategories = this.pos.models["pos.category"].getAll() || [];
+            const cats = this.pos.models["pos.category"].getAll();
+            if (cats && cats.length) {
+                this.state.posCategories = cats;
+                return;
+            }
+        }
+        // Fallback: load from backend
+        try {
+            const result = await this.orm.call(
+                "pos.category", "search_read", [[], ["id", "name"]]
+            );
+            if (result && result.length) {
+                this.state.posCategories = result;
+            }
+        } catch (err) {
+            console.warn("Could not load categories:", err);
         }
     }
 
@@ -78,6 +98,9 @@ export class PedidoScreen extends Component {
             return [];
         }
 
+        // Filter out products not available in POS (delegates to template's canBeDisplayed)
+        products = products.filter((p) => p.canBeDisplayed !== false);
+
         // Filter by search text
         if (this.state.searchText) {
             const searchLower = this.state.searchText.toLowerCase();
@@ -99,7 +122,10 @@ export class PedidoScreen extends Component {
                 // Fallback: manual filter (pos_categ_ids are objects with .id)
                 products = products.filter((p) =>
                     p.pos_categ_ids &&
-                    p.pos_categ_ids.some((cat) => (cat && typeof cat === "object" ? cat.id : cat) === this.state.selectedCategoryId)
+                    p.pos_categ_ids.some((cat) => {
+                        const catId = cat && typeof cat === "object" ? cat.id : cat;
+                        return catId === this.state.selectedCategoryId;
+                    })
                 );
             }
         }

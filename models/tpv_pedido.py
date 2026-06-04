@@ -212,14 +212,14 @@ class TpvPedido(models.Model):
                   'Verifica que los datos del módulo se hayan cargado.')
             )
 
-        # Pricelist simple: el del partner o el de la compañía
+        # Pricelist: usar el del partner o buscar uno disponible
         pricelist = partner.property_product_pricelist
-        if not pricelist:
-            pricelist = self.env.company.default_pricelist_id
         if not pricelist:
             pricelist = self.env['product.pricelist'].search(
                 [('company_id', '=', self.env.company.id)], limit=1
             )
+        if not pricelist:
+            pricelist = self.env['product.pricelist'].search([], limit=1)
 
         order_lines = []
         for line in self.line_ids:
