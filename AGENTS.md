@@ -242,3 +242,8 @@ El reporte QWeb (`report_pedido_obrador.xml`) tiene dos secciones dentro de `t-c
 - **Síntoma**: Múltiples bloques `.open-pedido-btn`, `.pedido-order-panel` duplicados
 - **Causa**: Ediciones que solo reemplazaron parte del archivo
 - **Fix**: Reescribir el archivo SCSS completo en vez de editar secciones
+
+### Error 19: Cancelar pedido con sale.order confirmado
+- **Síntoma**: `No se puede cancelar un pedido cuyo pedido de venta ya está confirmado`
+- **Causa**: `action_cancel` bloqueaba si sale.order tenía state 'sale'
+- **Fix**: Cancelar el sale.order primero con `sudo().action_cancel()` si está en 'sale', luego cancelar el pedido

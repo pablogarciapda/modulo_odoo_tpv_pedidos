@@ -60,3 +60,9 @@
 | 6 | Colores categoría desde backend ORM | `static/src/js/pedido_screen.js` | ✅ |
 | 7 | Botón "Revisar Pedidos" | `static/src/xml/pedido_screen.xml` | ✅ |
 | 8 | Touch UI (48px botones, 8px gap) | `static/src/scss/pedido_screen.scss` | ✅ |
+
+## PR #4 — fix/cancel-pedido-confirmado
+
+| # | Cambio | Archivo | Estado |
+|---|--------|---------|--------|
+| 1 | `action_cancel` permite cancelar sale.order en estado 'sale' | `models/tpv_pedido.py` | ✅ Mergeado |
