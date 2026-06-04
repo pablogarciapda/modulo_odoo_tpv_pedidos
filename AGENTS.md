@@ -15,10 +15,12 @@ Pedidos desde tiendas (TPV) al obrador. Dos flujos: **ENCARGO** (prioritario, pa
 6. Los componentes OWL del POS se inyectan en el bundle `point_of_sale._assets_pos`.
 7. El cliente genérico OBRADOR es `noupdate=1` — NO se sobreescribe al actualizar el módulo.
 8. **NO** usar `@tpv_pedidos/js/` imports en JS — el bundler de Odoo 19 no los resuelve. Fusionar TODO el JS en `pedido_screen.js`.
-9. **NO** usar `async/await` en JS para POS — puede causar errores de sintaxis en el bundler. Usar `.then()/.catch()`.
-10. Los **ACL** para `tpv.pedido` deben tener `perm_write=1` para POS users (necesitan confirmar pedidos).
-11. Al crear `sale.order` programáticamente: usar `sudo()`, incluir `product_uom_id`, `pricelist_id`, `warehouse_id`, `partner_invoice_id`, `partner_shipping_id`.
-12. **Categorías**: usar `getAllChildren()` para incluir subcategorías en el filtro de productos.
+9. **NO** usar `async/await` en JS del POS — causa errores de sintaxis en el bundler. Usar `.then()/.catch()`.
+10. **NO** usar `@each` loops en SCSS — el compilador Sass de Odoo 19 no soporta ciertas sintaxis de mapas. Usar `nth()` con listas de pares, o clases explícitas.
+11. Los **ACL** para `tpv.pedido` deben tener `perm_write=1` para POS users (necesitan confirmar pedidos).
+12. Al crear `sale.order` programáticamente: usar `sudo()`, incluir `product_uom_id`, `pricelist_id`, `warehouse_id`, `partner_invoice_id`, `partner_shipping_id`, `tax_ids`.
+13. **Categorías**: usar `getAllChildren()` para incluir subcategorías en el filtro de productos.
+14. **ir.logging**: tiene `_allow_sudo_commands = False` — NO usar `.sudo().create()` en él, usar `_logger.error()`.
 
 ### Modelo de Datos
 
@@ -215,3 +217,18 @@ El reporte QWeb (`report_pedido_obrador.xml`) tiene dos secciones dentro de `t-c
 - **Síntoma**: `AttributeError: 'res.company' object has no attribute 'default_pricelist_id'`
 - **Causa**: El campo no existe en `res.company`
 - **Fix**: Buscar pricelist directamente con `self.env['product.pricelist'].search([...])`
+
+### Error 16: `ir.logging.sudo().create()` causa AccessError
+- **Síntoma**: `AccessError` al ejecutar el cron de impresión
+- **Causa**: `ir.logging` tiene `_allow_sudo_commands = False` en Odoo 19
+- **Fix**: Reemplazar con `_logger.error(...)`
+
+### Error 17: SCSS `@each` loop incompatible con compilador Sass de Odoo 19
+- **Síntoma**: `Error: Invalid CSS after "    }": expected selector or at-rule, was "}"`
+- **Causa**: La sintaxis `@each $i, $color in (0: #..., ...)` no es soportada
+- **Fix**: Usar lista de pares con `nth($pair, 1)` y `nth($pair, 2)`, o clases CSS explícitas
+
+### Error 18: Código duplicado en SCSS por ediciones parciales
+- **Síntoma**: Múltiples bloques `.open-pedido-btn`, `.pedido-order-panel` duplicados
+- **Causa**: Ediciones que solo reemplazaron parte del archivo
+- **Fix**: Reescribir el archivo SCSS completo en vez de editar secciones

@@ -45,4 +45,5 @@
 | 14 | `models/tpv_pedido.py` | 399-434 | ESC/POS: usar `%.2f` en vez de `%.0f` para cantidades fraccionarias |
 | 15 | `models/tpv_pedido.py` | 319 | Cron solo imprime `confirmed`, no `done` |
 | 16 | `static/src/js/pedido_screen.js` | 167-221 | `pos.models` podría no estar disponible sin sesión POS abierta |
-| 17 | Todos | - | Falta `sale_stock` como dependencia opcional documentada |
+| 17 | `static/src/scss/pedido_screen.scss` | - | `@each` loop incompatible con Sass de Odoo 19 | ✅ Clases explícitas |
+| 18 | `static/src/scss/pedido_screen.scss` | - | Código duplicado por ediciones parciales | ✅ Archivo reescrito completo |
