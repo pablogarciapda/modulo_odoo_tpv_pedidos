@@ -20,7 +20,6 @@
         'data/initial_config_data.xml',
         'views/tpv_nota_categoria_views.xml',
         'views/tpv_pedido_views.xml',
-        'views/pos_config_views.xml',
         'views/tpv_pedido_config_views.xml',
         'views/menu_views.xml',
         'report/report_pedido_obrador.xml',
