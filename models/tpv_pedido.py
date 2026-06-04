@@ -229,6 +229,7 @@ class TpvPedido(models.Model):
                 'name': line._get_sale_line_name(),
                 'price_unit': line.precio_unitario,
                 'product_uom_id': line.product_uom_id.id,
+                'tax_ids': [(6, 0, line.product_id.taxes_id.ids)],
             }))
         sale_order_vals = {
             'partner_id': partner.id,
@@ -358,17 +359,11 @@ class TpvPedido(models.Model):
             sock.close()
         except (socket.timeout, socket.error, OSError):
             # Log del error pero no detener el cron
-            self.env['ir.logging'].sudo().create({
-                'name': 'tpv_pedidos',
-                'type': 'server',
-                'dbname': self.env.cr.dbname,
-                'level': 'ERROR',
-                'message': (
-                    'Error conectando a impresora de red %s:%s' %
-                    (pos_config.tpv_pedido_printer_ip,
-                     pos_config.tpv_pedido_printer_port)
-                ),
-            })
+            _logger.error(
+                'Error conectando a impresora de red %s:%s',
+                pos_config.tpv_pedido_printer_ip,
+                pos_config.tpv_pedido_printer_port,
+            )
 
     def _enviar_esc_pos(self, pos_config, pedidos, fecha):
         """Genera comandos ESC/POS para impresora térmica y los envía por socket."""
@@ -451,17 +446,11 @@ class TpvPedido(models.Model):
             sock.sendall(cmds)
             sock.close()
         except (socket.timeout, socket.error, OSError):
-            self.env['ir.logging'].sudo().create({
-                'name': 'tpv_pedidos',
-                'type': 'server',
-                'dbname': self.env.cr.dbname,
-                'level': 'ERROR',
-                'message': (
-                    'Error conectando a impresora ESC/POS %s:%s' %
-                    (pos_config.tpv_pedido_printer_ip,
-                     pos_config.tpv_pedido_printer_port)
-                ),
-            })
+            _logger.error(
+                'Error conectando a impresora ESC/POS %s:%s',
+                pos_config.tpv_pedido_printer_ip,
+                pos_config.tpv_pedido_printer_port,
+            )
 
     def get_detalle_por_tienda(self, date_from=None, date_to=None):
         """

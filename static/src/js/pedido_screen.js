@@ -476,6 +476,9 @@ class PedidoScreen extends Component {
         return this.state.lines.length;
     }
 
+    get posConfigName() {
+        return this.pos.config?.name || '';    }
+
     goBack() {
         this.pos.navigate("LoginScreen");
     }
