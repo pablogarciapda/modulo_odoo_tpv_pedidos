@@ -215,11 +215,11 @@ class TpvPedido(models.Model):
         # Pricelist: usar el del partner o buscar uno disponible
         pricelist = partner.property_product_pricelist
         if not pricelist:
-            pricelist = self.env['product.pricelist'].search(
+            pricelist = self.env['product.pricelist'].sudo().search(
                 [('company_id', '=', self.env.company.id)], limit=1
             )
         if not pricelist:
-            pricelist = self.env['product.pricelist'].search([], limit=1)
+            pricelist = self.env['product.pricelist'].sudo().search([], limit=1)
 
         order_lines = []
         for line in self.line_ids:
@@ -247,8 +247,8 @@ class TpvPedido(models.Model):
         try:
             _logger.info('Creando sale.order para pedido %s con vals: %s',
                          self.name, sale_order_vals)
-            sale_order = self.env['sale.order'].create(sale_order_vals)
-            sale_order.action_confirm()
+            sale_order = self.env['sale.order'].sudo().create(sale_order_vals)
+            sale_order.sudo().action_confirm()
             self.write({'sale_order_id': sale_order.id})
             return sale_order
         except Exception as e:
