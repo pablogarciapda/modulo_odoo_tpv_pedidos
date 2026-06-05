@@ -22,12 +22,23 @@ Además se envía por email como PDF.
 
 - **Fecha de pedido**: cuando se realiza el pedido (date_order)
 - **Fecha de entrega**: cuando el cliente/tienda quiere recibirlo (NUEVO: fecha_entrega)
-- **Reporte**: imprime los pedidos cuya **fecha de entrega = día anterior al reporte**
-  - Pedidos del día 05/06 → se imprimen el 06/06 entre 00:01-03:00
-  - Encargo para el 15/06 → se imprime el 15/06 (fabricación ese día)
-  - Pedido tienda del 05/06 → fecha_entrega = 06/06 → se imprime el 06/06
+- **Reporte**: imprime los pedidos que se fabrican el día del reporte
 
-## Ventana de Impresión Automática
+### Lógica por tipo de pedido
+
+| Tipo | Fecha entrega | Aparece en reporte del día |
+|------|--------------|---------------------------|
+| **Pedido Tienda** | `date_pedido + 1` (automático) | Día de **fecha_entrega** (se fabrica esa mañana) |
+| **Encargo Tienda** | Seleccionada por la tienda | Día de **fecha_entrega - 1** (se fabrica el día antes) |
+| **Cliente VIP** | Seleccionada por el cliente | Día de **fecha_entrega - 1** (se fabrica el día antes) |
+| **Cliente Tarjeta** | Seleccionada por el cliente | Día de **fecha_entrega - 1** (se fabrica el día antes) |
+
+**Ejemplo:**
+- Encargo con fecha_entrega = 15/06 → aparece en reporte del **14/06** (se fabrica el 14 para entregar el 15)
+- Pedido tienda del 05/06 con fecha_entrega = 06/06 → aparece en reporte del **06/06**
+- Cliente web con entrega el 15/06 → aparece en reporte del **14/06**
+
+### Ventana de Impresión Automática
 
 - El cron corre cada hora
 - Si la hora actual está entre **00:01 y 03:00** → procesa
