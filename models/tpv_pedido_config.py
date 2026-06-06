@@ -79,3 +79,33 @@ class TpvPedidoConfig(models.Model):
         domain=[('module', '=', '4')],
         context={'default_module': '4'},
     )
+
+    @api.model
+    def get_config(self):
+        """Returns the singleton config record, creating it if needed."""
+        config = self.search([], limit=1)
+        if not config:
+            config = self.create({'name': 'Configuracion Obrador'})
+        return config
+
+    @api.model
+    def action_open_config(self):
+        """Opens the singleton configuration form."""
+        config = self.get_config()
+        return {
+            'type': 'ir.actions.act_window',
+            'res_model': 'tpv.pedido.config',
+            'view_mode': 'form',
+            'res_id': config.id,
+            'target': 'current',
+        }
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        """Enforce singleton: if a record already exists, update it instead."""
+        existing = self.search([], limit=1)
+        if existing:
+            for vals in vals_list:
+                existing.write(vals)
+            return existing
+        return super().create(vals_list)
