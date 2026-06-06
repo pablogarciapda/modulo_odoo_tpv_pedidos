@@ -28,10 +28,12 @@ class ReportPedidoObrador(models.AbstractModel):
             'bloque2': docs._get_bloque2_data([]),
             'bloque3': docs._get_bloque3_data(docs),
             'bloque4': docs._get_bloque4_data(docs),
+            'bloque5': docs._get_bloque5_data(docs, []),
             'module1_title': config.module1_title if config else 'Totales por Familia Principal',
             'module2_title': config.module2_title if config else 'Encargos de Tiendas',
             'module3_title': config.module3_title if config else 'Pedidos de Clientes',
-            'module4_title': config.module4_title if config else 'Encargos de Pasteleria',
+            'module4_title': config.module4_title if config else 'Encargos Especificos',
+            'module5_title': config.module5_title if config else 'Pedidos Personalizados',
             'docs': docs,
             'web_orders': [],
         }

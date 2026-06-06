@@ -10,8 +10,9 @@ class TpvPedidoReportLine(models.Model):
     config_id = fields.Many2one('tpv.pedido.config', string='Configuracion',
         ondelete='cascade', required=True)
     module = fields.Selection([
-        ('1', 'Modulo 1 - Totales por categoria'),
-        ('4', 'Modulo 4 - Encargos pasteleria'),
+        ('1', 'Modulo 1 - Totales'),
+        ('4', 'Modulo 4 - Encargos'),
+        ('5', 'Modulo 5 - Pedidos'),
     ], string='Modulo', required=True)
     category_id = fields.Many2one('pos.category', string='Categoria',
         required=True)

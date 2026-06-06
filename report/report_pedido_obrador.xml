@@ -134,7 +134,7 @@
                 </t>
             </t>
 
-            <!-- Bloque 4 -> Modulo 4: Encargos de Pasteleria -->
+            <!-- Bloque 4 -> Modulo 4: Encargos Especificos -->
             <t t-if="data.get('module4_title') and data['bloque4']">
                 <div class="page">
                     <h1 class="text-center mb-4" t-esc="data['module4_title']"/>
@@ -143,8 +143,8 @@
             <t t-if="data['bloque4']">
                 <t t-foreach="data['bloque4']" t-as="tienda_name">
                     <div class="page">
-                        <h3>--- <t t-esc="tienda_name"/> (Pasteleria) ---</h3>
-                        <h4>ENCARGOS PASTELERIA</h4>
+                        <h3>--- <t t-esc="tienda_name"/> ---</h3>
+                        <h4>ENCARGOS ESPECIFICOS</h4>
                         <t t-foreach="data['bloque4'][tienda_name]" t-as="enc">
                             <div class="border rounded mb-3 p-2">
                                 <strong t-esc="enc['name']"/>
@@ -163,6 +163,45 @@
                                 </ul>
                             </div>
                         </t>
+                    </div>
+                </t>
+            </t>
+
+            <!-- Bloque 5: Pedidos Personalizados -->
+            <t t-if="data.get('module5_title') and data['bloque5']">
+                <div class="page">
+                    <h1 class="text-center mb-4" t-esc="data['module5_title']"/>
+                </div>
+            </t>
+            <t t-if="data['bloque5']">
+                <t t-foreach="data['bloque5']" t-as="pedido">
+                    <div class="page">
+                        <h3><t t-esc="pedido['name']"/></h3>
+                        <div class="mb-3">
+                            <p>Origen: <t t-esc="pedido['origen']"/></p>
+                            <p>Tienda: <t t-esc="pedido['tienda']"/></p>
+                            <t t-if="pedido['nota']">
+                                <p class="text-muted fst-italic" t-esc="pedido['nota']"/>
+                            </t>
+                        </div>
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Producto</th>
+                                    <th class="text-end">Cantidad</th>
+                                    <th>Nota</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <t t-foreach="pedido['lines']" t-as="l">
+                                    <tr>
+                                        <td t-esc="l['name']"/>
+                                        <td class="text-end" t-esc="l['qty']"/>
+                                        <td><t t-if="l['nota']" t-esc="l['nota']"/></td>
+                                    </tr>
+                                </t>
+                            </tbody>
+                        </table>
                     </div>
                 </t>
             </t>

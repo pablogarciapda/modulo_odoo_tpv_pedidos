@@ -506,10 +506,12 @@ class TpvPedido(models.Model):
             'bloque2': self._get_bloque2_data(web_orders) if config and config.module2_active else {},
             'bloque3': self._get_bloque3_data(pedidos) if config and config.module3_active else {},
             'bloque4': self._get_bloque4_data(pedidos) if config and config.module4_active else {},
+            'bloque5': self._get_bloque5_data(pedidos, web_orders) if config and config.module5_active else {},
             'module1_title': config.module1_title if config else 'Totales por Familia Principal',
             'module2_title': config.module2_title if config else 'Encargos de Tiendas',
             'module3_title': config.module3_title if config else 'Pedidos de Clientes',
-            'module4_title': config.module4_title if config else 'Encargos de Pasteleria',
+            'module4_title': config.module4_title if config else 'Encargos Especificos',
+            'module5_title': config.module5_title if config else 'Pedidos Personalizados',
         }
         data['docs'] = pedidos
         data['web_orders'] = web_orders
@@ -639,18 +641,15 @@ class TpvPedido(models.Model):
     @api.model
     def _get_bloque3_data(self, pedidos):
         """
-        Bloque 3 -> Modulo 2: TODOS los encargos de tiendas, excluyendo pasteleria.
-        Products whose categories overlap with module='4' are excluded.
-        No category filter — includes ALL encargos except Module 4 (pastry).
+        Bloque 3 -> Modulo 2: Encargos de tiendas excluyendo categorias seleccionadas.
+        Products whose categories overlap with module2_exclude_category_ids are excluded.
         Returns: {tienda_name: [{pedido_name, nota, lines: [{name, qty, nota}]}]}
         """
         config = self.env['tpv.pedido.config'].search([], limit=1)
-        # Get Module 4 categories (pastry) to exclude
-        module4_cat_ids = []
-        if config and config.report_line_ids:
-            module4_cat_ids = config.report_line_ids.filtered(
-                lambda r: r.module == '4'
-            ).mapped('category_id.id')
+        # Get categories to exclude from Module 2 config
+        exclude_cat_ids = []
+        if config and config.module2_exclude_category_ids:
+            exclude_cat_ids = config.module2_exclude_category_ids.ids
 
         result = {}
         for p in pedidos.filtered(lambda x: x.tipo_pedido == 'encargo'):
@@ -660,14 +659,14 @@ class TpvPedido(models.Model):
 
             lines = []
             for line in p.line_ids:
-                # Skip if product belongs to Module 4 categories (pastry)
-                is_pastry = False
-                if module4_cat_ids and line.product_id.pos_categ_ids:
+                # Skip if product belongs to excluded categories
+                is_excluded = False
+                if exclude_cat_ids and line.product_id.pos_categ_ids:
                     prod_cat_ids = [c.id if not isinstance(c, int) else c for c in line.product_id.pos_categ_ids]
-                    if any(cid in module4_cat_ids for cid in prod_cat_ids):
-                        is_pastry = True
+                    if any(cid in exclude_cat_ids for cid in prod_cat_ids):
+                        is_excluded = True
 
-                if not is_pastry:
+                if not is_excluded:
                     nota = line.nota_linea or ''
                     if line.nota_categoria_id:
                         nota = '[%s] %s' % (line.nota_categoria_id.name, nota)
@@ -733,6 +732,83 @@ class TpvPedido(models.Model):
                     'nota': p.nota_general or '',
                     'lines': lines,
                 })
+
+        return result
+
+    @api.model
+    def _get_bloque5_data(self, pedidos, web_orders):
+        """Modulo 5: Pedidos personalizados con filtros de origen y categoria."""
+        config = self.env['tpv.pedido.config'].search([], limit=1)
+        if not config or not config.module5_active:
+            return {}
+
+        # Get selected origins
+        origins = []
+        if config.module5_origin_web:
+            origins.append('web')
+        if config.module5_origin_encargo:
+            origins.append('encargo')
+        if config.module5_origin_pedido:
+            origins.append('pedido_tienda')
+
+        # Get Module 5 categories
+        module5_cat_ids = []
+        if config and config.report_line_ids:
+            module5_cat_ids = config.report_line_ids.filtered(
+                lambda r: r.module == '5'
+            ).mapped('category_id.id')
+
+        result = []
+
+        # Process pedidos (TPV)
+        for p in pedidos:
+            if p.tipo_pedido not in origins:
+                continue
+            lines = []
+            for line in p.line_ids:
+                if module5_cat_ids and line.product_id.pos_categ_ids:
+                    prod_cat_ids = [c.id if not isinstance(c, int) else c for c in line.product_id.pos_categ_ids]
+                    if not any(cid in module5_cat_ids for cid in prod_cat_ids):
+                        continue
+                nota = line.nota_linea or ''
+                if line.nota_categoria_id:
+                    nota = '[%s] %s' % (line.nota_categoria_id.name, nota)
+                lines.append({
+                    'name': line.product_id.display_name,
+                    'qty': line.qty,
+                    'nota': nota.strip(),
+                })
+            if lines:
+                result.append({
+                    'name': p.name,
+                    'origen': dict(p._fields['tipo_pedido'].selection).get(p.tipo_pedido, p.tipo_pedido),
+                    'tienda': p.pos_config_id.name or '',
+                    'nota': p.nota_general or '',
+                    'lines': lines,
+                })
+
+        # Process web orders
+        if config.module5_origin_web and web_orders:
+            for so in web_orders:
+                lines = []
+                for line in so.order_line:
+                    if module5_cat_ids and line.product_id.pos_categ_ids:
+                        prod_cat_ids = [c.id if not isinstance(c, int) else c for c in line.product_id.pos_categ_ids]
+                        if not any(cid in module5_cat_ids for cid in prod_cat_ids):
+                            continue
+                    lines.append({
+                        'name': line.product_id.display_name,
+                        'qty': line.product_uom_qty,
+                        'nota': '',
+                    })
+                if lines:
+                    result.append({
+                        'name': so.name,
+                        'origen': 'Web',
+                        'tienda': '',
+                        'nota': so.note or '',
+                        'lines': lines,
+                    })
 
         return result
 
