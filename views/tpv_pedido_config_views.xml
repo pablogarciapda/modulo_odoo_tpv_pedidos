@@ -57,15 +57,7 @@
                             <group>
                                 <field name="module2_title"/>
                             </group>
-                            <field name="report_line_ids"
-                                context="{'default_module': '2'}"
-                                domain="[('module', '=', '2')]">
-                                <list editable="bottom">
-                                    <field name="sequence" widget="handle"/>
-                                    <field name="module" invisible="1"/>
-                                    <field name="category_id"/>
-                                </list>
-                            </field>
+                            <p class="text-muted">Se imprimiran TODOS los encargos de todas las tiendas, sin filtro de categoria.</p>
                         </page>
 
                         <page string="Modulo 3 - Clientes" name="module3">

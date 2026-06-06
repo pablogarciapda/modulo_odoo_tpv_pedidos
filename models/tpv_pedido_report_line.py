@@ -11,7 +11,6 @@ class TpvPedidoReportLine(models.Model):
         ondelete='cascade', required=True)
     module = fields.Selection([
         ('1', 'Modulo 1 - Totales por categoria'),
-        ('2', 'Modulo 2 - Encargos tienda'),
         ('4', 'Modulo 4 - Encargos pasteleria'),
     ], string='Modulo', required=True)
     category_id = fields.Many2one('pos.category', string='Categoria',

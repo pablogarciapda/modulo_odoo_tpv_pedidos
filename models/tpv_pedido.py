@@ -639,26 +639,18 @@ class TpvPedido(models.Model):
     @api.model
     def _get_bloque3_data(self, pedidos):
         """
-        Bloque 3 -> Modulo 2: Encargos de tiendas (excluye pasteleria).
-        Uses config.report_line_ids filtered by module='2'.
+        Bloque 3 -> Modulo 2: TODOS los encargos de tiendas, excluyendo pasteleria.
         Products whose categories overlap with module='4' are excluded.
+        No category filter — includes ALL encargos except Module 4 (pastry).
         Returns: {tienda_name: [{pedido_name, nota, lines: [{name, qty, nota}]}]}
         """
         config = self.env['tpv.pedido.config'].search([], limit=1)
-        if not config:
-            return {}
-
-        module2_lines = config.report_line_ids.filtered(lambda l: l.module == '2')
-        module4_lines = config.report_line_ids.filtered(lambda l: l.module == '4')
-
-        # Build sets of all subcategory IDs for each module
-        module2_cat_ids = set()
-        for l in module2_lines:
-            module2_cat_ids.update(self._get_all_subcategory_ids(l.category_id))
-
-        module4_cat_ids = set()
-        for l in module4_lines:
-            module4_cat_ids.update(self._get_all_subcategory_ids(l.category_id))
+        # Get Module 4 categories (pastry) to exclude
+        module4_cat_ids = []
+        if config and config.report_line_ids:
+            module4_cat_ids = config.report_line_ids.filtered(
+                lambda r: r.module == '4'
+            ).mapped('category_id.id')
 
         result = {}
         for p in pedidos.filtered(lambda x: x.tipo_pedido == 'encargo'):
@@ -668,15 +660,14 @@ class TpvPedido(models.Model):
 
             lines = []
             for line in p.line_ids:
-                if not line.product_id.pos_categ_ids:
-                    continue
+                # Skip if product belongs to Module 4 categories (pastry)
+                is_pastry = False
+                if module4_cat_ids and line.product_id.pos_categ_ids:
+                    prod_cat_ids = [c.id if not isinstance(c, int) else c for c in line.product_id.pos_categ_ids]
+                    if any(cid in module4_cat_ids for cid in prod_cat_ids):
+                        is_pastry = True
 
-                prod_cat_ids = [c.id for c in line.product_id.pos_categ_ids]
-                in_module2 = any(cid in module2_cat_ids for cid in prod_cat_ids)
-                in_module4 = any(cid in module4_cat_ids for cid in prod_cat_ids)
-
-                # Include if in Module 2 AND NOT in Module 4
-                if in_module2 and not in_module4:
+                if not is_pastry:
                     nota = line.nota_linea or ''
                     if line.nota_categoria_id:
                         nota = '[%s] %s' % (line.nota_categoria_id.name, nota)
