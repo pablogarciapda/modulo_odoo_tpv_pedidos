@@ -37,8 +37,8 @@ class TpvPedidoConfig(models.Model):
                 'Agrupados por tienda con notas y productos.')
     module2_exclude_category_ids = fields.Many2many(
         'pos.category', string='Excluir categorias',
-        relation='tpv_pedido_config_module2_excl_cat',
-        column1='config_id', column2='category_id',
+        relation='tpv_pedido_config_module2_exclude_category_rel',
+        column1='tpv_pedido_config_id', column2='pos_category_id',
         help='Categorias a EXCLUIR de los encargos del Modulo 2.',
     )
 
@@ -62,8 +62,8 @@ class TpvPedidoConfig(models.Model):
     module5_origin_pedido = fields.Boolean(string='Pedido Tienda', default=False)
     module5_category_ids = fields.Many2many(
         'pos.category', string='Categorias',
-        relation='tpv_pedido_config_module5_cat',
-        column1='config_id', column2='category_id',
+        relation='tpv_pedido_config_module5_category_rel',
+        column1='tpv_pedido_config_id', column2='pos_category_id',
         help='Categorias a incluir en este modulo.',
     )
 
