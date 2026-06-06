@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="tpv_pos_category_view_form_inherit" model="ir.ui.view">
+        <field name="name">pos.category.form.inherit.tpv</field>
+        <field name="model">pos.category</field>
+        <field name="inherit_id" ref="point_of_sale.pos_category_view_form"/>
+        <field name="arch" type="xml">
+            <field name="name" position="after">
+                <field name="tpv_es_principal"/>
+                <field name="tpv_print_copies"
+                    attrs="{'invisible': [('tpv_es_principal', '=', False)]}"/>
+            </field>
+        </field>
+    </record>
+</odoo>

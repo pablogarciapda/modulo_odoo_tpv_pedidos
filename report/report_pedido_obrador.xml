@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Reporte PDF: Resumen de Pedidos al Obrador -->
     <record id="action_report_pedido_obrador" model="ir.actions.report">
         <field name="name">Resumen Pedidos Obrador</field>
         <field name="model">tpv.pedido</field>
@@ -12,125 +11,144 @@
         <field name="binding_type">report</field>
     </record>
 
-    <!-- Template del reporte -->
     <template id="report_pedido_obrador">
         <t t-call="web.external_layout">
             <t t-set="o" t-value="docs"/>
-            <t t-set="title">Resumen de Pedidos al Obrador</t>
-
             <div class="page">
-                <!-- Fecha del reporte -->
-                <div class="text-center mb-4">
-                    <h2>Resumen de Pedidos al Obrador</h2>
-                    <p class="text-muted">
-                        Fecha: <span t-esc="min(docs.mapped('date_pedido'))" t-options="{'widget': 'date'}"/>
-                    </p>
+                <!-- PORTADA -->
+                <div class="text-center mb-4" style="padding-top: 100px;">
+                    <h1>Resumen de Pedidos del Obrador</h1>
+                    <h3 t-esc="data['fecha']" t-options="{'widget': 'date'}"/>
                 </div>
+                <div class="text-center">
+                    <p>Documento generado automaticamente</p>
+                </div>
+            </div>
 
-                <!-- ============================== -->
-                <!-- SECCIÓN 1: Resumen por Productos -->
-                <!-- ============================== -->
-                <h3 class="mt-4 mb-2">Resumen por Productos</h3>
-                <table class="table table-sm table-bordered">
-                    <thead class="table-dark">
-                        <tr>
-                            <th>Producto</th>
-                            <th class="text-end">Total Uds</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <t t-foreach="resumen" t-as="prod">
-                            <!-- Línea total del producto -->
-                            <tr class="fw-bold">
-                                <td t-esc="prod['product_name']"/>
-                                <td class="text-end" t-esc="prod['qty_total']"/>
-                            </tr>
-                            <!-- Líneas con nota -->
-                            <t t-foreach="prod['lineas_con_nota']" t-as="nota">
-                                <tr class="fst-italic text-muted">
-                                    <td class="ps-4" t-esc="nota['nota']"/>
-                                    <td class="text-end" t-esc="nota['qty']"/>
-                                </tr>
-                            </t>
-                        </t>
-                    </tbody>
-                </table>
+            <t t-foreach="data['bloque1']" t-as="cat_id">
+                <t t-set="cat_data" t-value="data['bloque1'][cat_id]"/>
+                <!-- Print cat_data['copies'] copies -->
+                <t t-foreach="range(cat_data['copies'])" t-as="copy_num">
+                    <div class="page">
+                        <h2 class="text-center mb-4">
+                            <t t-esc="cat_data['name']"/>
+                            <span class="small text-muted">(Copia <t t-esc="copy_num + 1"/>)</span>
+                        </h2>
 
-                <!-- ============================== -->
-                <!-- SECCIÓN 2: Detalle por Tienda  -->
-                <!-- ============================== -->
-                <h3 class="mt-5 mb-2">Detalle por Tienda</h3>
-                <t t-foreach="detalle" t-as="tienda_name" t-key="tienda_name">
-                    <div class="mb-4">
-                        <h4 class="bg-light p-2 rounded">
-                            <i class="fa fa-store me-2"/>
-                            <span t-esc="tienda_name"/>
-                        </h4>
-
-                        <!-- ENCARGOS -->
-                        <t t-if="detalle[tienda_name]['encargos']">
-                            <h5 class="text-warning mt-3">
-                                <i class="fa fa-star me-1"/>ENCARGOS
-                            </h5>
-                            <t t-foreach="detalle[tienda_name]['encargos']" t-as="enc">
-                                <div class="border rounded mb-2 p-2">
-                                    <div class="d-flex justify-content-between">
-                                        <strong t-esc="enc['name']"/>
-                                        <span class="text-muted small" t-esc="enc['date']"/>
-                                    </div>
-                                    <t t-if="enc['nota_general']">
-                                        <div class="text-muted fst-italic small">
-                                            Nota: <span t-esc="enc['nota_general']"/>
-                                        </div>
-                                    </t>
-                                    <ul class="list-unstyled mb-0 mt-1">
-                                        <t t-foreach="enc['lineas']" t-as="l">
-                                            <li class="ps-3">
-                                                <span t-esc="l['product_name']"/> —
-                                                <span t-esc="l['qty']"/> uds
-                                                <t t-if="l['nota']">
-                                                    <span class="badge bg-info" t-esc="l['nota']"/>
-                                                </t>
-                                            </li>
+                        <t t-if="cat_data['products']">
+                            <table class="table table-sm table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>Producto</th>
+                                        <th class="text-end">Total</th>
+                                        <th class="text-end">Exterior</th>
+                                        <t t-foreach="cat_data['products'][0]['tiendas']" t-as="tienda_nombre">
+                                            <th class="text-end" t-esc="tienda_nombre"/>
                                         </t>
-                                    </ul>
-                                </div>
-                            </t>
-                        </t>
-
-                        <!-- PEDIDOS TIENDA -->
-                        <t t-if="detalle[tienda_name]['pedidos_tienda']">
-                            <h5 class="text-primary mt-3">
-                                <i class="fa fa-truck me-1"/>PEDIDOS TIENDA
-                            </h5>
-                            <t t-foreach="detalle[tienda_name]['pedidos_tienda']" t-as="pt">
-                                <div class="border rounded mb-2 p-2">
-                                    <div class="d-flex justify-content-between">
-                                        <strong t-esc="pt['name']"/>
-                                        <span class="text-muted small" t-esc="pt['date']"/>
-                                    </div>
-                                    <t t-if="pt['nota_general']">
-                                        <div class="text-muted fst-italic small">
-                                            Nota: <span t-esc="pt['nota_general']"/>
-                                        </div>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="cat_data['products']" t-as="prod">
+                                        <tr>
+                                            <td t-esc="prod['name']"/>
+                                            <td class="text-end" t-esc="prod['total']"/>
+                                            <td class="text-end" t-esc="prod['exterior']"/>
+                                            <t t-foreach="prod['tiendas']" t-as="tienda_nombre" t-key="tienda_nombre_index">
+                                                <td class="text-end" t-esc="prod['tiendas'][tienda_nombre]"/>
+                                            </t>
+                                        </tr>
                                     </t>
-                                    <ul class="list-unstyled mb-0 mt-1">
-                                        <t t-foreach="pt['lineas']" t-as="l">
-                                            <li class="ps-3">
-                                                <span t-esc="l['product_name']"/> —
-                                                <span t-esc="l['qty']"/> uds
-                                                <t t-if="l['nota']">
-                                                    <span class="badge bg-info" t-esc="l['nota']"/>
-                                                </t>
-                                            </li>
-                                        </t>
-                                    </ul>
-                                </div>
-                            </t>
+                                </tbody>
+                            </table>
+                        </t>
+                        <t t-else="">
+                            <p class="text-muted">No hay productos en esta categoria.</p>
                         </t>
                     </div>
                 </t>
-            </div>
+            </t>
+
+            <!-- Bloque 2: Clientes Externos -->
+            <t t-if="data['bloque2']">
+                <t t-foreach="data['bloque2']" t-as="cliente">
+                    <div class="page">
+                        <h3>Cliente: <span t-esc="cliente['name']"/></h3>
+                        <div class="mb-3">
+                            <p>Telefono: <t t-esc="cliente['phone']"/></p>
+                            <p>Direccion: <t t-esc="cliente['address']"/></p>
+                            <p>Entrega: <t t-esc="cliente['delivery']"/></p>
+                            <p>Total: <t t-esc="cliente['total_amount']"/> €</p>
+                        </div>
+                        <table class="table table-sm">
+                            <thead><tr><th>Producto</th><th class="text-end">Cantidad</th></tr></thead>
+                            <tbody>
+                                <t t-foreach="cliente['products']" t-as="prod">
+                                    <tr>
+                                        <td t-esc="prod['name']"/>
+                                        <td class="text-end" t-esc="prod['qty']"/>
+                                    </tr>
+                                </t>
+                            </tbody>
+                        </table>
+                    </div>
+                </t>
+            </t>
+
+            <!-- Bloque 3: Encargos NO Pasteleria -->
+            <t t-if="data['bloque3']">
+                <t t-foreach="data['bloque3']" t-as="tienda_name">
+                    <div class="page">
+                        <h3>--- <t t-esc="tienda_name"/> ---</h3>
+                        <h4>ENCARGOS</h4>
+                        <t t-foreach="data['bloque3'][tienda_name]" t-as="enc">
+                            <div class="border rounded mb-3 p-2">
+                                <strong t-esc="enc['name']"/>
+                                <t t-if="enc['nota']">
+                                    <p class="text-muted fst-italic" t-esc="enc['nota']"/>
+                                </t>
+                                <ul>
+                                    <t t-foreach="enc['lines']" t-as="l">
+                                        <li>
+                                            <t t-esc="l['name']"/> — <t t-esc="l['qty']"/> uds
+                                            <t t-if="l['nota']">
+                                                <span class="badge bg-info" t-esc="l['nota']"/>
+                                            </t>
+                                        </li>
+                                    </t>
+                                </ul>
+                            </div>
+                        </t>
+                    </div>
+                </t>
+            </t>
+
+            <!-- Bloque 4: Encargos Pasteleria -->
+            <t t-if="data['bloque4']">
+                <t t-foreach="data['bloque4']" t-as="tienda_name">
+                    <div class="page">
+                        <h3>--- <t t-esc="tienda_name"/> (Pasteleria) ---</h3>
+                        <h4>ENCARGOS PASTELERIA</h4>
+                        <t t-foreach="data['bloque4'][tienda_name]" t-as="enc">
+                            <div class="border rounded mb-3 p-2">
+                                <strong t-esc="enc['name']"/>
+                                <t t-if="enc['nota']">
+                                    <p class="text-muted fst-italic" t-esc="enc['nota']"/>
+                                </t>
+                                <ul>
+                                    <t t-foreach="enc['lines']" t-as="l">
+                                        <li>
+                                            <t t-esc="l['name']"/> — <t t-esc="l['qty']"/> uds
+                                            <t t-if="l['nota']">
+                                                <span class="badge bg-info" t-esc="l['nota']"/>
+                                            </t>
+                                        </li>
+                                    </t>
+                                </ul>
+                            </div>
+                        </t>
+                    </div>
+                </t>
+            </t>
         </t>
     </template>
 </odoo>

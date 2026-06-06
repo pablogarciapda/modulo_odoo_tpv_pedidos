@@ -24,6 +24,16 @@
                             <p class="text-muted">Hora del dia en que se imprimira automaticamente el resumen de pedidos.</p>
                         </group>
                     </group>
+                    <group string="Notificacion Email">
+                        <group>
+                            <field name="print_email_active"/>
+                            <field name="print_email_to" placeholder="obrador@ejemplo.com"/>
+                        </group>
+                    </group>
+                    <group string="Categorias de Pasteleria">
+                        <field name="category_pasteleria_ids" widget="many2many_tags"
+                            options="{'no_create': True}"/>
+                    </group>
                 </sheet>
             </form>
         </field>

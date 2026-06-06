@@ -20,3 +20,12 @@ class TpvPedidoConfig(models.Model):
         default='2',
         help='Hora del dia en que se imprimira automaticamente el resumen de pedidos.',
     )
+    print_email_to = fields.Char(string='Email de destino',
+        help='Direccion de email donde se enviara el reporte PDF.')
+    print_email_active = fields.Boolean(string='Enviar por email', default=False)
+    category_pasteleria_ids = fields.Many2many(
+        'pos.category',
+        string='Categorias de pasteleria',
+        help='Categorias cuyos productos se consideran pasteleria '
+             'y aparecen en el Bloque 4 del reporte.',
+    )
