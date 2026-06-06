@@ -25,9 +25,28 @@ class TpvPedidoConfig(models.Model):
     print_email_active = fields.Boolean(string='Enviar por email', default=False)
 
     module1_title = fields.Char(string='Titulo Modulo 1', default='Totales por Familia Principal')
+    module1_active = fields.Boolean(string='Activo', default=True)
+    module1_description = fields.Text(string='Descripcion',
+        default='Totales por categoria principal con numero de copias por categoria. '
+                'Muestra las cantidades totales de cada producto agrupado por familia.')
+
     module2_title = fields.Char(string='Titulo Modulo 2', default='Encargos de Tiendas')
+    module2_active = fields.Boolean(string='Activo', default=True)
+    module2_description = fields.Text(string='Descripcion',
+        default='Todos los encargos de las tiendas, excluyendo pasteleria. '
+                'Agrupados por tienda con notas y productos.')
+
     module3_title = fields.Char(string='Titulo Modulo 3', default='Pedidos de Clientes')
+    module3_active = fields.Boolean(string='Activo', default=True)
+    module3_description = fields.Text(string='Descripcion',
+        default='Pedidos de clientes externos (VIP y tarjeta). '
+                'Incluye datos de contacto y metodo de entrega.')
+
     module4_title = fields.Char(string='Titulo Modulo 4', default='Encargos de Pasteleria')
+    module4_active = fields.Boolean(string='Activo', default=True)
+    module4_description = fields.Text(string='Descripcion',
+        default='Encargos de pasteleria de las tiendas. '
+                'Se seleccionan las categorias consideradas pasteleria.')
 
     report_line_ids = fields.One2many(
         'tpv.pedido.report.line', 'config_id',

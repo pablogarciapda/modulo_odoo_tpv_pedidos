@@ -502,10 +502,10 @@ class TpvPedido(models.Model):
 
         data = {
             'fecha': fecha,
-            'bloque1': self._get_bloque1_data(pedidos, web_orders),
-            'bloque2': self._get_bloque2_data(web_orders),
-            'bloque3': self._get_bloque3_data(pedidos),
-            'bloque4': self._get_bloque4_data(pedidos),
+            'bloque1': self._get_bloque1_data(pedidos, web_orders) if config and config.module1_active else {},
+            'bloque2': self._get_bloque2_data(web_orders) if config and config.module2_active else {},
+            'bloque3': self._get_bloque3_data(pedidos) if config and config.module3_active else {},
+            'bloque4': self._get_bloque4_data(pedidos) if config and config.module4_active else {},
             'module1_title': config.module1_title if config else 'Totales por Familia Principal',
             'module2_title': config.module2_title if config else 'Encargos de Tiendas',
             'module3_title': config.module3_title if config else 'Pedidos de Clientes',
