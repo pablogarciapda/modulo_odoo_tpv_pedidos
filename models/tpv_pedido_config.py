@@ -58,6 +58,10 @@ class TpvPedidoConfig(models.Model):
     module5_origin_web = fields.Boolean(string='Web', default=False)
     module5_origin_encargo = fields.Boolean(string='Encargo', default=False)
     module5_origin_pedido = fields.Boolean(string='Pedido Tienda', default=False)
+    module5_category_ids = fields.Many2many(
+        'pos.category', string='Categorias',
+        help='Categorias a incluir en este modulo.',
+    )
 
     report_line_ids = fields.One2many(
         'tpv.pedido.report.line', 'config_id',

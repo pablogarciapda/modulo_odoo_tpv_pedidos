@@ -752,11 +752,7 @@ class TpvPedido(models.Model):
             origins.append('pedido_tienda')
 
         # Get Module 5 categories
-        module5_cat_ids = []
-        if config and config.report_line_ids:
-            module5_cat_ids = config.report_line_ids.filtered(
-                lambda r: r.module == '5'
-            ).mapped('category_id.id')
+        module5_cat_ids = config.module5_category_ids.ids if config and config.module5_category_ids else []
 
         result = []
 
