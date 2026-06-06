@@ -12,7 +12,7 @@ class TpvPedidoReportLine(models.Model):
     module = fields.Selection([
         ('1', 'Modulo 1 - Totales'),
         ('4', 'Modulo 4 - Encargos'),
-    ], string='Modulo', required=True)
+    ], string='Modulo', required=True, default='1')
     category_id = fields.Many2one('pos.category', string='Categoria',
         required=True)
     copies = fields.Integer(string='Copias', default=1,
