@@ -534,7 +534,7 @@ class TpvPedido(models.Model):
         if not config:
             return {}
 
-        module1_lines = config.report_line_ids.filtered(lambda l: l.module == '1')
+        module1_lines = config.module1_line_ids
         result = {}
 
         for line in module1_lines:
@@ -696,7 +696,7 @@ class TpvPedido(models.Model):
         if not config:
             return {}
 
-        module4_lines = config.report_line_ids.filtered(lambda l: l.module == '4')
+        module4_lines = config.module4_line_ids
 
         module4_cat_ids = set()
         for l in module4_lines:

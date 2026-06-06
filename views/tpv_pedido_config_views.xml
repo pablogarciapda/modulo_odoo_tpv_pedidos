@@ -44,8 +44,7 @@
                                 <span class="fw-bold ms-3 me-1">Titulo:</span>
                                 <field name="module1_title" class="flex-grow-1"/>
                             </div>
-                            <field name="report_line_ids" domain="[('module', '=', '1')]"
-                                context="{'default_module': '1'}">
+                            <field name="module1_line_ids">
                                 <list editable="bottom">
                                     <field name="category_id"/>
                                     <field name="copies"/>
@@ -85,8 +84,7 @@
                                 <field name="module4_title" class="flex-grow-1"/>
                             </div>
                             <field name="module4_description" readonly="1"/>
-                            <field name="report_line_ids" domain="[('module', '=', '4')]"
-                                context="{'default_module': '4'}">
+                            <field name="module4_line_ids">
                                 <list editable="bottom">
                                     <field name="sequence" widget="handle"/>
                                     <field name="category_id"/>

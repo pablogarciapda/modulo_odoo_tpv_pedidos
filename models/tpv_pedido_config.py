@@ -67,7 +67,15 @@ class TpvPedidoConfig(models.Model):
         help='Categorias a incluir en este modulo.',
     )
 
-    report_line_ids = fields.One2many(
+    module1_line_ids = fields.One2many(
         'tpv.pedido.report.line', 'config_id',
-        string='Configuracion de modulos',
+        string='Categorias Modulo 1',
+        domain=[('module', '=', '1')],
+        context={'default_module': '1'},
+    )
+    module4_line_ids = fields.One2many(
+        'tpv.pedido.report.line', 'config_id',
+        string='Categorias Modulo 4',
+        domain=[('module', '=', '4')],
+        context={'default_module': '4'},
     )
