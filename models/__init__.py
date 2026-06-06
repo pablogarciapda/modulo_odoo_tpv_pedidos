@@ -5,3 +5,4 @@ from . import tpv_pedido_config
 from . import sale_order_inherit
 from . import res_partner_inherit
 from . import pos_category_inherit
+from . import tpv_pedido_report_line

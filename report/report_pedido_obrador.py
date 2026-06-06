@@ -21,12 +21,17 @@ class ReportPedidoObrador(models.AbstractModel):
         docs = self.env['tpv.pedido'].browse(docids)
         from datetime import datetime
         fecha = datetime.now()
+        config = self.env['tpv.pedido.config'].search([], limit=1)
         report_data = {
             'fecha': fecha,
             'bloque1': docs._get_bloque1_data(docs, []),
             'bloque2': docs._get_bloque2_data([]),
-            'bloque3': docs._get_bloque3_data(docs, pasteleria=False),
+            'bloque3': docs._get_bloque3_data(docs),
             'bloque4': docs._get_bloque4_data(docs),
+            'module1_title': config.module1_title if config else 'Totales por Familia Principal',
+            'module2_title': config.module2_title if config else 'Encargos de Tiendas',
+            'module3_title': config.module3_title if config else 'Pedidos de Clientes',
+            'module4_title': config.module4_title if config else 'Encargos de Pasteleria',
             'docs': docs,
             'web_orders': [],
         }

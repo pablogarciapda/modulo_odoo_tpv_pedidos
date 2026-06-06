@@ -493,16 +493,23 @@ class TpvPedido(models.Model):
     @api.model
     def _generar_reporte_4_bloques(self, pedidos, web_orders, fecha):
         """
-        Genera el PDF con los 4 bloques del reporte.
+        Genera el PDF con los 4 modulos del reporte.
         Construye el diccionario de datos y lo pasa a _render_qweb_pdf.
+        Incluye titulos configurables de cada modulo.
         Returns PDF bytes.
         """
+        config = self.env['tpv.pedido.config'].search([], limit=1)
+
         data = {
             'fecha': fecha,
             'bloque1': self._get_bloque1_data(pedidos, web_orders),
             'bloque2': self._get_bloque2_data(web_orders),
-            'bloque3': self._get_bloque3_data(pedidos, pasteleria=False),
+            'bloque3': self._get_bloque3_data(pedidos),
             'bloque4': self._get_bloque4_data(pedidos),
+            'module1_title': config.module1_title if config else 'Totales por Familia Principal',
+            'module2_title': config.module2_title if config else 'Encargos de Tiendas',
+            'module3_title': config.module3_title if config else 'Pedidos de Clientes',
+            'module4_title': config.module4_title if config else 'Encargos de Pasteleria',
         }
         data['docs'] = pedidos
         data['web_orders'] = web_orders
@@ -518,14 +525,19 @@ class TpvPedido(models.Model):
     def _get_bloque1_data(self, pedidos, web_orders):
         """
         Bloque 1: Totales por familia principal.
+        Uses config.report_line_ids filtered by module='1'.
         Returns: {category_id: {name, copies, products: [{name, total, exterior, tiendas: {name: qty}}]}}
         """
-        # Get main categories
-        principales = self.env['pos.category'].search([('tpv_es_principal', '=', True)])
+        config = self.env['tpv.pedido.config'].search([], limit=1)
+        if not config:
+            return {}
+
+        module1_lines = config.report_line_ids.filtered(lambda l: l.module == '1')
         result = {}
 
-        for cat in principales:
-            copies = cat.tpv_print_copies or 1
+        for line in module1_lines:
+            cat = line.category_id
+            copies = line.copies or 1
             cat_data = {
                 'name': cat.name,
                 'copies': copies,
@@ -538,41 +550,39 @@ class TpvPedido(models.Model):
             # Aggregate products
             product_totals = {}
             for p in pedidos:
-                for line in p.line_ids:
-                    if line.product_id.pos_categ_ids:
-                        # Check if product belongs to this category tree
-                        prod_cat_ids = [c.id for c in line.product_id.pos_categ_ids]
+                for l in p.line_ids:
+                    if l.product_id.pos_categ_ids:
+                        prod_cat_ids = [c.id for c in l.product_id.pos_categ_ids]
                         if any(cid in all_cat_ids for cid in prod_cat_ids):
-                            if line.product_id.id not in product_totals:
-                                product_totals[line.product_id.id] = {
-                                    'name': line.product_id.display_name,
+                            if l.product_id.id not in product_totals:
+                                product_totals[l.product_id.id] = {
+                                    'name': l.product_id.display_name,
                                     'total': 0.0,
                                     'exterior': 0.0,
                                     'tiendas': {},
                                 }
-                            product_totals[line.product_id.id]['total'] += line.qty
+                            product_totals[l.product_id.id]['total'] += l.qty
 
-                            # Separate exterior vs tiendas
                             tienda = p.pos_config_id.name if p.pos_config_id else 'Desconocida'
-                            if tienda not in product_totals[line.product_id.id]['tiendas']:
-                                product_totals[line.product_id.id]['tiendas'][tienda] = 0.0
-                            product_totals[line.product_id.id]['tiendas'][tienda] += line.qty
+                            if tienda not in product_totals[l.product_id.id]['tiendas']:
+                                product_totals[l.product_id.id]['tiendas'][tienda] = 0.0
+                            product_totals[l.product_id.id]['tiendas'][tienda] += l.qty
 
             # Add web orders too
             for so in web_orders:
-                for line in so.order_line:
-                    if line.product_id.pos_categ_ids:
-                        prod_cat_ids = [c.id for c in line.product_id.pos_categ_ids]
+                for l in so.order_line:
+                    if l.product_id.pos_categ_ids:
+                        prod_cat_ids = [c.id for c in l.product_id.pos_categ_ids]
                         if any(cid in all_cat_ids for cid in prod_cat_ids):
-                            if line.product_id.id not in product_totals:
-                                product_totals[line.product_id.id] = {
-                                    'name': line.product_id.display_name,
+                            if l.product_id.id not in product_totals:
+                                product_totals[l.product_id.id] = {
+                                    'name': l.product_id.display_name,
                                     'total': 0.0,
                                     'exterior': 0.0,
                                     'tiendas': {},
                                 }
-                            product_totals[line.product_id.id]['total'] += line.product_uom_qty
-                            product_totals[line.product_id.id]['exterior'] += line.product_uom_qty
+                            product_totals[l.product_id.id]['total'] += l.product_uom_qty
+                            product_totals[l.product_id.id]['exterior'] += l.product_uom_qty
 
             # Sort by total desc
             sorted_products = sorted(
@@ -627,15 +637,28 @@ class TpvPedido(models.Model):
         return result
 
     @api.model
-    def _get_bloque3_data(self, pedidos, pasteleria=False):
+    def _get_bloque3_data(self, pedidos):
         """
-        Bloque 3 y 4: Encargos de tiendas.
-        pasteleria=True -> only pastry products (Bloque 4)
-        pasteleria=False -> exclude pastry products (Bloque 3)
+        Bloque 3 -> Modulo 2: Encargos de tiendas (excluye pasteleria).
+        Uses config.report_line_ids filtered by module='2'.
+        Products whose categories overlap with module='4' are excluded.
         Returns: {tienda_name: [{pedido_name, nota, lines: [{name, qty, nota}]}]}
         """
         config = self.env['tpv.pedido.config'].search([], limit=1)
-        pastry_cat_ids = config.category_pasteleria_ids.ids if config else []
+        if not config:
+            return {}
+
+        module2_lines = config.report_line_ids.filtered(lambda l: l.module == '2')
+        module4_lines = config.report_line_ids.filtered(lambda l: l.module == '4')
+
+        # Build sets of all subcategory IDs for each module
+        module2_cat_ids = set()
+        for l in module2_lines:
+            module2_cat_ids.update(self._get_all_subcategory_ids(l.category_id))
+
+        module4_cat_ids = set()
+        for l in module4_lines:
+            module4_cat_ids.update(self._get_all_subcategory_ids(l.category_id))
 
         result = {}
         for p in pedidos.filtered(lambda x: x.tipo_pedido == 'encargo'):
@@ -645,12 +668,15 @@ class TpvPedido(models.Model):
 
             lines = []
             for line in p.line_ids:
-                is_pastry = False
-                if line.product_id.pos_categ_ids:
-                    prod_cat_ids = [c.id for c in line.product_id.pos_categ_ids]
-                    is_pastry = any(cid in pastry_cat_ids for cid in prod_cat_ids)
+                if not line.product_id.pos_categ_ids:
+                    continue
 
-                if pasteleria == is_pastry:
+                prod_cat_ids = [c.id for c in line.product_id.pos_categ_ids]
+                in_module2 = any(cid in module2_cat_ids for cid in prod_cat_ids)
+                in_module4 = any(cid in module4_cat_ids for cid in prod_cat_ids)
+
+                # Include if in Module 2 AND NOT in Module 4
+                if in_module2 and not in_module4:
                     nota = line.nota_linea or ''
                     if line.nota_categoria_id:
                         nota = '[%s] %s' % (line.nota_categoria_id.name, nota)
@@ -671,8 +697,53 @@ class TpvPedido(models.Model):
 
     @api.model
     def _get_bloque4_data(self, pedidos):
-        """Bloque 4: Encargos de pasteleria."""
-        return self._get_bloque3_data(pedidos, pasteleria=True)
+        """
+        Bloque 4 -> Modulo 4: Encargos de pasteleria.
+        Uses config.report_line_ids filtered by module='4'.
+        Returns: {tienda_name: [{pedido_name, nota, lines: [{name, qty, nota}]}]}
+        """
+        config = self.env['tpv.pedido.config'].search([], limit=1)
+        if not config:
+            return {}
+
+        module4_lines = config.report_line_ids.filtered(lambda l: l.module == '4')
+
+        module4_cat_ids = set()
+        for l in module4_lines:
+            module4_cat_ids.update(self._get_all_subcategory_ids(l.category_id))
+
+        result = {}
+        for p in pedidos.filtered(lambda x: x.tipo_pedido == 'encargo'):
+            tienda = p.pos_config_id.name or 'Desconocida'
+            if tienda not in result:
+                result[tienda] = []
+
+            lines = []
+            for line in p.line_ids:
+                if not line.product_id.pos_categ_ids:
+                    continue
+
+                prod_cat_ids = [c.id for c in line.product_id.pos_categ_ids]
+                in_module4 = any(cid in module4_cat_ids for cid in prod_cat_ids)
+
+                if in_module4:
+                    nota = line.nota_linea or ''
+                    if line.nota_categoria_id:
+                        nota = '[%s] %s' % (line.nota_categoria_id.name, nota)
+                    lines.append({
+                        'name': line.product_id.display_name,
+                        'qty': line.qty,
+                        'nota': nota.strip(),
+                    })
+
+            if lines:
+                result[tienda].append({
+                    'name': p.name,
+                    'nota': p.nota_general or '',
+                    'lines': lines,
+                })
+
+        return result
 
     @api.model
     def _enviar_reporte_email(self, config, pdf_content, fecha):

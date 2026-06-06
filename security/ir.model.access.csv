@@ -7,3 +7,4 @@ access_tpv_nota_categoria_user,tpv.nota.categoria.user,model_tpv_nota_categoria,
 access_tpv_nota_categoria_manager,tpv.nota.categoria.manager,model_tpv_nota_categoria,point_of_sale.group_pos_manager,1,1,1,1
 access_tpv_pedido_config_manager,tpv.pedido.config.manager,model_tpv_pedido_config,point_of_sale.group_pos_manager,1,1,1,1
 access_pos_category_print_copies,pos.category.print.copies,model_pos_category,point_of_sale.group_pos_manager,1,1,1,0
+access_tpv_pedido_report_line,tpv.pedido.report.line,model_tpv_pedido_report_line,point_of_sale.group_pos_manager,1,1,1,1

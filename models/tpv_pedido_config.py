@@ -23,9 +23,13 @@ class TpvPedidoConfig(models.Model):
     print_email_to = fields.Char(string='Email de destino',
         help='Direccion de email donde se enviara el reporte PDF.')
     print_email_active = fields.Boolean(string='Enviar por email', default=False)
-    category_pasteleria_ids = fields.Many2many(
-        'pos.category',
-        string='Categorias de pasteleria',
-        help='Categorias cuyos productos se consideran pasteleria '
-             'y aparecen en el Bloque 4 del reporte.',
+
+    module1_title = fields.Char(string='Titulo Modulo 1', default='Totales por Familia Principal')
+    module2_title = fields.Char(string='Titulo Modulo 2', default='Encargos de Tiendas')
+    module3_title = fields.Char(string='Titulo Modulo 3', default='Pedidos de Clientes')
+    module4_title = fields.Char(string='Titulo Modulo 4', default='Encargos de Pasteleria')
+
+    report_line_ids = fields.One2many(
+        'tpv.pedido.report.line', 'config_id',
+        string='Configuracion de modulos',
     )

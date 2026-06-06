@@ -9,6 +9,7 @@
                     <div class="oe_title">
                         <h1>Configuracion de Impresion del Obrador</h1>
                     </div>
+
                     <group string="Impresora">
                         <group>
                             <field name="printer_ip" placeholder="192.168.1.100"/>
@@ -18,22 +19,76 @@
                             <field name="printer_type" widget="radio"/>
                         </group>
                     </group>
+
                     <group string="Programacion">
                         <group>
                             <field name="print_hour"/>
-                            <p class="text-muted">Hora del dia en que se imprimira automaticamente el resumen de pedidos.</p>
+                            <p class="text-muted">Hora de impresion automatica.</p>
                         </group>
-                    </group>
-                    <group string="Notificacion Email">
                         <group>
                             <field name="print_email_active"/>
+                        </group>
+                    </group>
+
+                    <group string="Notificacion Email">
+                        <group>
                             <field name="print_email_to" placeholder="obrador@ejemplo.com"/>
                         </group>
                     </group>
-                    <group string="Categorias de Pasteleria">
-                        <field name="category_pasteleria_ids" widget="many2many_tags"
-                            options="{'no_create': True}"/>
-                    </group>
+
+                    <notebook>
+                        <page string="Modulo 1 - Totales" name="module1">
+                            <group>
+                                <field name="module1_title"/>
+                            </group>
+                            <field name="report_line_ids"
+                                context="{'default_module': '1'}"
+                                domain="[('module', '=', '1')]">
+                                <list editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="module" invisible="1"/>
+                                    <field name="category_id"/>
+                                    <field name="copies"/>
+                                </list>
+                            </field>
+                        </page>
+
+                        <page string="Modulo 2 - Encargos" name="module2">
+                            <group>
+                                <field name="module2_title"/>
+                            </group>
+                            <field name="report_line_ids"
+                                context="{'default_module': '2'}"
+                                domain="[('module', '=', '2')]">
+                                <list editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="module" invisible="1"/>
+                                    <field name="category_id"/>
+                                </list>
+                            </field>
+                        </page>
+
+                        <page string="Modulo 3 - Clientes" name="module3">
+                            <group>
+                                <field name="module3_title"/>
+                            </group>
+                        </page>
+
+                        <page string="Modulo 4 - Pasteleria" name="module4">
+                            <group>
+                                <field name="module4_title"/>
+                            </group>
+                            <field name="report_line_ids"
+                                context="{'default_module': '4'}"
+                                domain="[('module', '=', '4')]">
+                                <list editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="module" invisible="1"/>
+                                    <field name="category_id"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
                 </sheet>
             </form>
         </field>
@@ -44,7 +99,7 @@
         <field name="res_model">tpv.pedido.config</field>
         <field name="view_mode">form</field>
         <field name="help" type="html">
-            <p>Configure la impresora del obrador y la hora de impresion automatica.</p>
+            <p>Configure la impresora del obrador, la hora de impresion automatica y los modulos del reporte.</p>
         </field>
     </record>
 </odoo>
