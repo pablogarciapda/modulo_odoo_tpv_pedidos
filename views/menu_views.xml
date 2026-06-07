@@ -24,18 +24,19 @@
         action="tpv_nota_categoria_action"
         sequence="20"/>
 
+    <!-- Acción URL para Informes Web (debe ir ANTES del menuitem) -->
+    <record id="action_open_web_informes" model="ir.actions.act_url">
+        <field name="name">Informes Pedidos</field>
+        <field name="url">/tpv_pedidos/informes</field>
+        <field name="target">self</field>
+    </record>
+
     <!-- Submenú Informes Web -->
     <menuitem id="menu_tpv_pedidos_informes"
         name="Informes Pedidos"
         parent="menu_tpv_pedidos_root"
         action="action_open_web_informes"
         sequence="22"/>
-
-    <record id="action_open_web_informes" model="ir.actions.act_url">
-        <field name="name">Informes Pedidos</field>
-        <field name="url">/tpv_pedidos/informes</field>
-        <field name="target">self</field>
-    </record>
 
     <!-- Submenú Configuración Obrador (usa server action para singleton) -->
     <menuitem id="menu_tpv_pedidos_config"
