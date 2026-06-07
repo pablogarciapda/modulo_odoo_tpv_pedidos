@@ -20,3 +20,7 @@ class SaleOrderInherit(models.Model):
         string='Tipo de Pedido',
         tracking=True,
     )
+    fecha_entrega = fields.Date(
+        string='Fecha de entrega',
+        help='Fecha en que el cliente necesita recibir el pedido.',
+    )

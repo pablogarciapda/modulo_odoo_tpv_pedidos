@@ -74,6 +74,7 @@ class PedidoConfirmPopup extends Component {
         linesToJSON: { type: Function },
         posConfigId: { type: Number },
         posConfigName: { type: String },
+        fechaEntrega: { type: String, optional: true },
         onConfirm: { type: Function },
         close: { type: Function },
     };
@@ -152,6 +153,12 @@ class PedidoScreen extends Component {
         this.orm = useService("orm");
         this.notification = useService("notification");
 
+        // Calculate tomorrow's date in YYYY-MM-DD format
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const tomorrowStr = tomorrow.toISOString().split('T')[0];
+        this._defaultFechaEntrega = tomorrowStr;
+
         this.state = useState({
             selectedCategoryId: null,
             posCategories: [],
@@ -162,6 +169,7 @@ class PedidoScreen extends Component {
             editingPedidoId: null,
             editingPedidoName: "",
             nota_general: "",
+            fecha_entrega: tomorrowStr,
         });
 
         onMounted(() => {
@@ -512,6 +520,7 @@ class PedidoScreen extends Component {
             tipoPedido: tipoPedido,
             lines: this.state.lines,
             notaGeneral: this.state.nota_general,
+            fechaEntrega: this.state.fecha_entrega,
             linesToJSON: () => this.state.lines.map((l) => ({
                 product_id: l.product_id,
                 qty: l.qty,
@@ -542,6 +551,7 @@ class PedidoScreen extends Component {
                 tipo_pedido: tipoPedido,
                 lines: lines,
                 nota_general: notaGeneral,
+                fecha_entrega: this.state.fecha_entrega,
             }
         ).then((result) => {
             if (result && result.error) {
@@ -552,6 +562,7 @@ class PedidoScreen extends Component {
                     { type: "success" }
                 );
                 this.state.nota_general = "";
+                this.state.fecha_entrega = "";
                 this.state.lines = [];
             } else {
                 this.notification.add(
@@ -619,6 +630,7 @@ class PedidoScreen extends Component {
         this.state.editingPedidoId = pedido.id;
         this.state.editingPedidoName = pedido.name;
         this.state.nota_general = pedido.nota_general || "";
+        this.state.fecha_entrega = pedido.fecha_entrega || this._defaultFechaEntrega;
 
         // Re-fetch prices from pos.models
         if (this.pos.models && this.pos.models["product.product"]) {
@@ -650,6 +662,7 @@ class PedidoScreen extends Component {
                 pedido_id: this.state.editingPedidoId,
                 lines: lines,
                 nota_general: this.state.nota_general || "",
+                fecha_entrega: this.state.fecha_entrega || "",
             }
         ).then((result) => {
             if (result && result.name) {
@@ -659,6 +672,7 @@ class PedidoScreen extends Component {
                 );
                 this.state.editingPedidoId = null;
                 this.state.editingPedidoName = "";
+                this.state.fecha_entrega = "";
                 this.state.lines = [];
             }
         }).catch((error) => {
@@ -698,6 +712,7 @@ class PedidoScreen extends Component {
         this.state.editingPedidoId = null;
         this.state.editingPedidoName = "";
         this.state.nota_general = "";
+        this.state.fecha_entrega = "";
         this.state.lines = [];
     }
 }

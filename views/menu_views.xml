@@ -24,11 +24,11 @@
         action="tpv_nota_categoria_action"
         sequence="20"/>
 
-    <!-- Submenú Configuración Impresora -->
+    <!-- Submenú Configuración Obrador (usa server action para singleton) -->
     <menuitem id="menu_tpv_pedidos_config"
-        name="Configuración Impresora"
+        name="Configuración Obrador"
         parent="menu_tpv_pedidos_root"
-        action="tpv_pedido_config_action"
+        action="action_open_tpv_pedido_config"
         sequence="25"
         groups="point_of_sale.group_pos_manager"/>
 </odoo>

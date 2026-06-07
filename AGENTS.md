@@ -247,3 +247,18 @@ El reporte QWeb (`report_pedido_obrador.xml`) tiene dos secciones dentro de `t-c
 - **Síntoma**: `No se puede cancelar un pedido cuyo pedido de venta ya está confirmado`
 - **Causa**: `action_cancel` bloqueaba si sale.order tenía state 'sale'
 - **Fix**: Cancelar el sale.order primero con `sudo().action_cancel()` si está en 'sale', luego cancelar el pedido
+
+### Error 20: `child_id` vs `child_ids` en campo relacional
+- **Síntoma**: `AttributeError: 'pos.category' object has no attribute 'child_id'`
+- **Causa**: El subagente escribió `child_id` en vez de `child_ids`
+- **Fix**: Usar `category.child_ids`
+
+### Error 21: `_()` import con UnboundLocalError
+- **Síntoma**: `UnboundLocalError: cannot access local variable '_'`
+- **Causa**: `_` importada de odoo pero conflicto con variable local en el mismo scope
+- **Fix**: Usar string sin `_()` o importar de otra forma
+
+### Error 22: Reporte QWeb sin `<main>` tag
+- **Síntoma**: `IndexError: list index out of range` en `_prepare_html`
+- **Causa**: `t-call="web.external_layout"` no generaba `<main>` cuando docs estaba vacío
+- **Fix**: Reemplazar `t-call` por `<main>` directo en el template

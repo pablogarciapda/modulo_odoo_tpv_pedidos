@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 
+import base64
 import logging
 
 from odoo import api, fields, models, _
 from odoo.exceptions import ValidationError
+from datetime import timedelta
 
 _logger = logging.getLogger(__name__)
 
@@ -84,11 +86,30 @@ class TpvPedido(models.Model):
         compute='_compute_es_encargo',
         store=True,
     )
+    fecha_entrega = fields.Date(
+        string='Fecha de entrega',
+        help='Fecha en que el cliente/tienda necesita recibir el pedido. '
+             'Para pedidos tienda se calcula automaticamente como date_pedido + 1.',
+        compute='_compute_fecha_entrega',
+        store=True,
+        readonly=False,
+    )
 
     @api.depends('tipo_pedido')
     def _compute_es_encargo(self):
         for rec in self:
             rec.es_encargo = rec.tipo_pedido == 'encargo'
+
+    @api.depends('date_pedido', 'tipo_pedido')
+    def _compute_fecha_entrega(self):
+        for rec in self:
+            if rec.tipo_pedido == 'encargo' and rec.fecha_entrega:
+                # Manual, keep as is
+                continue
+            elif rec.tipo_pedido == 'pedido_tienda':
+                rec.fecha_entrega = rec.date_pedido + timedelta(days=1)
+            else:
+                rec.fecha_entrega = rec.date_pedido
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -142,7 +163,7 @@ class TpvPedido(models.Model):
 
     @api.model
     def create_pedido_from_pos(self, pos_config_id, tipo_pedido, lines,
-                               nota_general='', partner_id=False):
+                               nota_general='', partner_id=False, fecha_entrega=None):
         """
         Crea un pedido desde el frontend del TPV.
         Usado por el controller JSON-RPC y directamente por orm.call.
@@ -167,6 +188,15 @@ class TpvPedido(models.Model):
             if obrador:
                 partner_id = obrador.id
 
+        # Validate fecha_entrega
+        if fecha_entrega:
+            fecha_entrega_date = fields.Date.to_date(fecha_entrega)
+            min_date = fields.Date.today() + timedelta(days=1)
+            if fecha_entrega_date < min_date:
+                raise ValidationError(
+                    _('La fecha de entrega debe ser igual o posterior a mañana.')
+                )
+
         line_vals = []
         for line in lines:
             line_vals.append((0, 0, {
@@ -181,6 +211,7 @@ class TpvPedido(models.Model):
             'tipo_pedido': tipo_pedido,
             'partner_id': partner_id,
             'nota_general': nota_general,
+            'fecha_entrega': fecha_entrega,
             'line_ids': line_vals,
         }
 
@@ -193,7 +224,7 @@ class TpvPedido(models.Model):
         }
 
     @api.model
-    def update_pedido_from_pos(self, pedido_id, lines, nota_general=''):
+    def update_pedido_from_pos(self, pedido_id, lines, nota_general='', fecha_entrega=None):
         """
         Actualiza un pedido existente desde el frontend POS.
         Reemplaza líneas y opcionalmente la nota general.
@@ -217,10 +248,13 @@ class TpvPedido(models.Model):
             }))
 
         pedido.line_ids.unlink()
-        pedido.write({
+        vals = {
             'line_ids': line_vals,
             'nota_general': nota_general,
-        })
+        }
+        if fecha_entrega:
+            vals['fecha_entrega'] = fecha_entrega
+        pedido.write(vals)
 
         # Si estaba confirmado, mantener confirmado;
         # si estaba en borrador, confirmar automáticamente
@@ -276,6 +310,7 @@ class TpvPedido(models.Model):
                 'tipo_pedido': p.tipo_pedido,
                 'state': p.state,
                 'nota_general': p.nota_general or '',
+                'fecha_entrega': p.fecha_entrega,
                 'line_ids': lines_data,
             })
         return result
@@ -399,31 +434,59 @@ class TpvPedido(models.Model):
 
     @api.model
     def _cron_imprimir_resumen_obrador(self):
-        """
-        Cron job diario. Lee la configuracion central de impresora del obrador
-        y, si es la hora configurada, imprime el resumen de pedidos del dia anterior.
-        """
+        """Cron que corre cada hora. Procesa solo entre 00:01 y 03:00."""
+        from datetime import datetime
+        now = datetime.now()
+        hora_actual = now.hour + now.minute / 60.0
+
+        # Ventana de impresion: 00:01 - 03:00
+        if hora_actual < 0.01 or hora_actual > 3.0:
+            return
+
         config = self.env['tpv.pedido.config'].search([], limit=1)
         if not config or not config.printer_ip:
             return
 
-        from datetime import datetime, timedelta
-        now = datetime.now()
-        current_hour = now.hour + now.minute / 60.0
-        print_hour = int(config.print_hour or '2')
+        today = fields.Date.today()
 
-        if abs(current_hour - print_hour) >= 0.5:
-            return  # Not time yet
-
-        ayer = fields.Date.context_today(self) - timedelta(days=1)
-        pedidos = self.search([
+        # Obtener pedidos a fabricar HOY
+        # Pedidos tienda: fecha_entrega = today
+        pedidos_tienda = self.search([
             ('state', '=', 'confirmed'),
-            ('date_pedido', '=', ayer),
+            ('tipo_pedido', '=', 'pedido_tienda'),
+            ('fecha_entrega', '=', today),
         ])
-        if not pedidos:
+
+        # Encargos: fecha_entrega - 1 = today (se fabrican el dia antes)
+        pedidos_encargo = self.search([
+            ('state', '=', 'confirmed'),
+            ('tipo_pedido', '=', 'encargo'),
+            ('fecha_entrega', '=', today + timedelta(days=1)),
+        ])
+
+        # Clientes web (sale.order con fecha_entrega = today+1 para fabricar hoy)
+        web_orders = self.env['sale.order'].search([
+            ('fecha_entrega', '=', today + timedelta(days=1)),
+            ('state', '=', 'sale'),
+        ])
+
+        all_pedidos = pedidos_tienda + pedidos_encargo
+
+        if not all_pedidos and not web_orders:
             return
 
-        self._do_print(config, pedidos, ayer)
+        # Generar PDF con 4 bloques
+        pdf = self._generar_reporte_4_bloques(all_pedidos, web_orders, today)
+
+        # Imprimir
+        if config.printer_type == 'esc_pos':
+            self._enviar_esc_pos(config, all_pedidos, today)
+        else:
+            self._enviar_impresora_red(config, pdf, today)
+
+        # Enviar email
+        if config.print_email_active and config.print_email_to:
+            self._enviar_reporte_email(config, pdf, today)
 
     def _do_print(self, config, pedidos, fecha):
         """Send the printout using the configured printer."""
@@ -435,6 +498,352 @@ class TpvPedido(models.Model):
                 pedidos.ids,
             )
             self._enviar_impresora_red(config, pdf_content, fecha)
+
+    @api.model
+    def _generar_reporte_4_bloques(self, pedidos, web_orders, fecha):
+        """
+        Genera el PDF con los 4 modulos del reporte.
+        Construye el diccionario de datos y lo pasa a _render_qweb_pdf.
+        Incluye titulos configurables de cada modulo.
+        Returns PDF bytes.
+        """
+        config = self.env['tpv.pedido.config'].search([], limit=1)
+
+        data = {
+            'fecha': fecha,
+            'bloque1': self._get_bloque1_data(pedidos, web_orders) if config and config.module1_active else {},
+            'bloque2': self._get_bloque2_data(web_orders) if config and config.module2_active else {},
+            'bloque3': self._get_bloque3_data(pedidos) if config and config.module3_active else {},
+            'bloque4': self._get_bloque4_data(pedidos) if config and config.module4_active else {},
+            'bloque5': self._get_bloque5_data(pedidos, web_orders) if config and config.module5_active else {},
+            'module1_title': config.module1_title if config else 'Totales por Familia Principal',
+            'module2_title': config.module2_title if config else 'Encargos de Tiendas',
+            'module3_title': config.module3_title if config else 'Pedidos de Clientes',
+            'module4_title': config.module4_title if config else 'Encargos Especificos',
+            'module5_title': config.module5_title if config else 'Pedidos Personalizados',
+        }
+        data['docs'] = pedidos
+        data['web_orders'] = web_orders
+
+        pdf_content, _ = self.env['ir.actions.report']._render_qweb_pdf(
+            'tpv_pedidos.action_report_pedido_obrador',
+            res_ids=pedidos.ids,
+            data=data,
+        )
+        return pdf_content
+
+    @api.model
+    def _get_bloque1_data(self, pedidos, web_orders):
+        """
+        Bloque 1: Totales por familia principal.
+        Uses config.report_line_ids filtered by module='1'.
+        Returns: {category_id: {name, copies, products: [{name, total, exterior, tiendas: {name: qty}}]}}
+        """
+        config = self.env['tpv.pedido.config'].search([], limit=1)
+        if not config:
+            return {}
+
+        module1_lines = config.module1_line_ids
+        result = {}
+
+        for line in module1_lines:
+            cat = line.category_id
+            copies = line.copies or 1
+            cat_data = {
+                'name': cat.name,
+                'copies': copies,
+                'products': [],
+            }
+
+            # Get all subcategories
+            all_cat_ids = self._get_all_subcategory_ids(cat)
+
+            # Aggregate products
+            product_totals = {}
+            for p in pedidos:
+                for l in p.line_ids:
+                    if l.product_id.pos_categ_ids:
+                        prod_cat_ids = [c.id for c in l.product_id.pos_categ_ids]
+                        if any(cid in all_cat_ids for cid in prod_cat_ids):
+                            if l.product_id.id not in product_totals:
+                                product_totals[l.product_id.id] = {
+                                    'name': l.product_id.display_name,
+                                    'total': 0.0,
+                                    'exterior': 0.0,
+                                    'tiendas': {},
+                                }
+                            product_totals[l.product_id.id]['total'] += l.qty
+
+                            tienda = p.pos_config_id.name if p.pos_config_id else 'Desconocida'
+                            if tienda not in product_totals[l.product_id.id]['tiendas']:
+                                product_totals[l.product_id.id]['tiendas'][tienda] = 0.0
+                            product_totals[l.product_id.id]['tiendas'][tienda] += l.qty
+
+            # Add web orders too
+            for so in web_orders:
+                for l in so.order_line:
+                    if l.product_id.pos_categ_ids:
+                        prod_cat_ids = [c.id for c in l.product_id.pos_categ_ids]
+                        if any(cid in all_cat_ids for cid in prod_cat_ids):
+                            if l.product_id.id not in product_totals:
+                                product_totals[l.product_id.id] = {
+                                    'name': l.product_id.display_name,
+                                    'total': 0.0,
+                                    'exterior': 0.0,
+                                    'tiendas': {},
+                                }
+                            product_totals[l.product_id.id]['total'] += l.product_uom_qty
+                            product_totals[l.product_id.id]['exterior'] += l.product_uom_qty
+
+            # Sort by total desc
+            sorted_products = sorted(
+                product_totals.values(),
+                key=lambda x: x['total'],
+                reverse=True,
+            )
+            cat_data['products'] = sorted_products
+            result[cat.id] = cat_data
+
+        return result
+
+    @api.model
+    def _get_all_subcategory_ids(self, category):
+        """Recursively get all subcategory IDs."""
+        ids = [category.id]
+        for child in category.child_ids:
+            ids.extend(self._get_all_subcategory_ids(child))
+        return ids
+
+    @api.model
+    def _get_bloque2_data(self, web_orders):
+        """
+        Bloque 2: Clientes externos.
+        Returns: [{name, phone, address, delivery, total_amount, products: [{name, qty}]}]
+        """
+        result = []
+        for so in web_orders:
+            products = []
+            for line in so.order_line:
+                products.append({
+                    'name': line.product_id.display_name,
+                    'qty': line.product_uom_qty,
+                })
+            # Determine delivery method
+            total = so.amount_total
+            if total > 25:
+                delivery = 'Envio a domicilio'
+            else:
+                delivery = 'Recoger en tienda'
+            if so.warehouse_id:
+                delivery = 'Recoger en obrador'
+
+            result.append({
+                'name': so.partner_id.name,
+                'phone': so.partner_id.phone or so.partner_id.mobile or '',
+                'address': so.partner_id.contact_address or '',
+                'delivery': delivery,
+                'total_amount': total,
+                'products': products,
+            })
+        return result
+
+    @api.model
+    def _get_bloque3_data(self, pedidos):
+        """
+        Bloque 3 -> Modulo 2: Encargos de tiendas excluyendo categorias seleccionadas.
+        Products whose categories overlap with module2_exclude_category_ids are excluded.
+        Returns: {tienda_name: [{pedido_name, nota, lines: [{name, qty, nota}]}]}
+        """
+        config = self.env['tpv.pedido.config'].search([], limit=1)
+        # Get categories to exclude from Module 2 config
+        exclude_cat_ids = []
+        if config and config.module2_exclude_category_ids:
+            exclude_cat_ids = config.module2_exclude_category_ids.ids
+
+        result = {}
+        for p in pedidos.filtered(lambda x: x.tipo_pedido == 'encargo'):
+            tienda = p.pos_config_id.name or 'Desconocida'
+            if tienda not in result:
+                result[tienda] = []
+
+            lines = []
+            for line in p.line_ids:
+                # Skip if product belongs to excluded categories
+                is_excluded = False
+                if exclude_cat_ids and line.product_id.pos_categ_ids:
+                    prod_cat_ids = [c.id if not isinstance(c, int) else c for c in line.product_id.pos_categ_ids]
+                    if any(cid in exclude_cat_ids for cid in prod_cat_ids):
+                        is_excluded = True
+
+                if not is_excluded:
+                    nota = line.nota_linea or ''
+                    if line.nota_categoria_id:
+                        nota = '[%s] %s' % (line.nota_categoria_id.name, nota)
+                    lines.append({
+                        'name': line.product_id.display_name,
+                        'qty': line.qty,
+                        'nota': nota.strip(),
+                    })
+
+            if lines:
+                result[tienda].append({
+                    'name': p.name,
+                    'nota': p.nota_general or '',
+                    'lines': lines,
+                })
+
+        return result
+
+    @api.model
+    def _get_bloque4_data(self, pedidos):
+        """
+        Bloque 4 -> Modulo 4: Encargos de pasteleria.
+        Uses config.report_line_ids filtered by module='4'.
+        Returns: {tienda_name: [{pedido_name, nota, lines: [{name, qty, nota}]}]}
+        """
+        config = self.env['tpv.pedido.config'].search([], limit=1)
+        if not config:
+            return {}
+
+        module4_lines = config.module4_line_ids
+
+        module4_cat_ids = set()
+        for l in module4_lines:
+            module4_cat_ids.update(self._get_all_subcategory_ids(l.category_id))
+
+        result = {}
+        for p in pedidos.filtered(lambda x: x.tipo_pedido == 'encargo'):
+            tienda = p.pos_config_id.name or 'Desconocida'
+            if tienda not in result:
+                result[tienda] = []
+
+            lines = []
+            for line in p.line_ids:
+                if not line.product_id.pos_categ_ids:
+                    continue
+
+                prod_cat_ids = [c.id for c in line.product_id.pos_categ_ids]
+                in_module4 = any(cid in module4_cat_ids for cid in prod_cat_ids)
+
+                if in_module4:
+                    nota = line.nota_linea or ''
+                    if line.nota_categoria_id:
+                        nota = '[%s] %s' % (line.nota_categoria_id.name, nota)
+                    lines.append({
+                        'name': line.product_id.display_name,
+                        'qty': line.qty,
+                        'nota': nota.strip(),
+                    })
+
+            if lines:
+                result[tienda].append({
+                    'name': p.name,
+                    'nota': p.nota_general or '',
+                    'lines': lines,
+                })
+
+        return result
+
+    @api.model
+    def _get_bloque5_data(self, pedidos, web_orders):
+        """Modulo 5: Pedidos personalizados con filtros de origen y categoria."""
+        config = self.env['tpv.pedido.config'].search([], limit=1)
+        if not config or not config.module5_active:
+            return {}
+
+        # Get selected origins
+        origins = []
+        if config.module5_origin_web:
+            origins.append('web')
+        if config.module5_origin_encargo:
+            origins.append('encargo')
+        if config.module5_origin_pedido:
+            origins.append('pedido_tienda')
+
+        # Get Module 5 categories
+        module5_cat_ids = config.module5_category_ids.ids if config and config.module5_category_ids else []
+
+        result = []
+
+        # Process pedidos (TPV)
+        for p in pedidos:
+            if p.tipo_pedido not in origins:
+                continue
+            lines = []
+            for line in p.line_ids:
+                if module5_cat_ids and line.product_id.pos_categ_ids:
+                    prod_cat_ids = [c.id if not isinstance(c, int) else c for c in line.product_id.pos_categ_ids]
+                    if not any(cid in module5_cat_ids for cid in prod_cat_ids):
+                        continue
+                nota = line.nota_linea or ''
+                if line.nota_categoria_id:
+                    nota = '[%s] %s' % (line.nota_categoria_id.name, nota)
+                lines.append({
+                    'name': line.product_id.display_name,
+                    'qty': line.qty,
+                    'nota': nota.strip(),
+                })
+            if lines:
+                result.append({
+                    'name': p.name,
+                    'origen': dict(p._fields['tipo_pedido'].selection).get(p.tipo_pedido, p.tipo_pedido),
+                    'tienda': p.pos_config_id.name or '',
+                    'nota': p.nota_general or '',
+                    'lines': lines,
+                })
+
+        # Process web orders
+        if config.module5_origin_web and web_orders:
+            for so in web_orders:
+                lines = []
+                for line in so.order_line:
+                    if module5_cat_ids and line.product_id.pos_categ_ids:
+                        prod_cat_ids = [c.id if not isinstance(c, int) else c for c in line.product_id.pos_categ_ids]
+                        if not any(cid in module5_cat_ids for cid in prod_cat_ids):
+                            continue
+                    lines.append({
+                        'name': line.product_id.display_name,
+                        'qty': line.product_uom_qty,
+                        'nota': '',
+                    })
+                if lines:
+                    result.append({
+                        'name': so.name,
+                        'origen': 'Web',
+                        'tienda': '',
+                        'nota': so.note or '',
+                        'lines': lines,
+                    })
+
+        return result
+
+    @api.model
+    def _enviar_reporte_email(self, config, pdf_content, fecha):
+        """Envía el reporte PDF por email."""
+        if not config.print_email_active or not config.print_email_to:
+            return
+
+        mail_mail = self.env['mail.mail']
+        mail_values = {
+            'subject': 'Resumen de pedidos del obrador - %s' % fecha,
+            'body_html': '''
+                <p>Adjunto encontrará el resumen de pedidos del obrador
+                para la fecha <strong>%s</strong>.</p>
+                <p>Saludos.</p>
+            ''' % fecha,
+            'email_to': config.print_email_to,
+            'email_from': self.env.user.email or self.env.company.email,
+            'attachment_ids': [(0, 0, {
+                'name': 'resumen_obrador_%s.pdf' % fecha,
+                'datas': base64.b64encode(pdf_content).decode(),
+                'mimetype': 'application/pdf',
+            })],
+        }
+        try:
+            mail = mail_mail.create(mail_values)
+            mail.send()
+        except Exception as e:
+            _logger.error('Error enviando email del reporte: %s', str(e))
 
     def _enviar_impresora_red(self, config, pdf_content, fecha):
         """Envía el PDF a una impresora de red vía CUPS o direct IP."""

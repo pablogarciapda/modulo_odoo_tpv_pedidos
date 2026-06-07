@@ -50,6 +50,7 @@
                             <field name="partner_id"
                                 options="{'no_create': True}"/>
                             <field name="date_pedido"/>
+                            <field name="fecha_entrega"/>
                         </group>
                         <group>
                             <field name="es_encargo" invisible="True"/>
@@ -99,6 +100,7 @@
                   decoration-warning="tipo_pedido == 'encargo' and state == 'confirmed'">
                 <field name="name"/>
                 <field name="date_pedido"/>
+                <field name="fecha_entrega" optional="hide"/>
                 <field name="pos_config_id"/>
                 <field name="tipo_pedido" widget="badge"
                     decoration-warning="tipo_pedido == 'encargo'"
@@ -126,6 +128,7 @@
                 <field name="pos_config_id"/>
                 <field name="partner_id"/>
                 <field name="date_pedido"/>
+                <field name="fecha_entrega"/>
                 <filter name="filter_draft" string="Borrador"
                     domain="[('state', '=', 'draft')]"/>
                 <filter name="filter_confirmed" string="Confirmado"

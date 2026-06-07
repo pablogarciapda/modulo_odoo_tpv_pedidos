@@ -86,6 +86,11 @@
                         <t t-if="isEditing">
                             <!-- Edit mode buttons -->
                             <div class="mb-2">
+                                <label class="form-label fw-bold small">Fecha de entrega</label>
+                                <input type="date" class="form-control"
+                                    t-model="state.fecha_entrega"/>
+                            </div>
+                            <div class="mb-2">
                                 <label class="form-label fw-bold small">Nota general</label>
                                 <textarea class="form-control" rows="2"
                                     t-model="state.nota_general" placeholder="Nota general..."/>
@@ -109,6 +114,11 @@
                         <t t-else="">
                             <!-- Create mode buttons -->
                             <t t-if="state.lines.length > 0">
+                                <div class="mb-2">
+                                    <label class="form-label fw-bold small">Fecha de entrega</label>
+                                    <input type="date" class="form-control"
+                                        t-model="state.fecha_entrega"/>
+                                </div>
                                 <div class="mb-2">
                                     <label class="form-label fw-bold small">Nota general</label>
                                     <textarea class="form-control" rows="2"

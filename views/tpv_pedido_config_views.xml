@@ -4,11 +4,16 @@
         <field name="name">tpv.pedido.config.form</field>
         <field name="model">tpv.pedido.config</field>
         <field name="arch" type="xml">
-            <form>
+            <form create="false" edit="true">
+                <header>
+                    <button name="action_print_report" string="Imprimir reporte"
+                        type="object" class="oe_highlight" icon="fa-print"/>
+                </header>
                 <sheet>
                     <div class="oe_title">
                         <h1>Configuracion de Impresion del Obrador</h1>
                     </div>
+
                     <group string="Impresora">
                         <group>
                             <field name="printer_ip" placeholder="192.168.1.100"/>
@@ -18,12 +23,98 @@
                             <field name="printer_type" widget="radio"/>
                         </group>
                     </group>
+
                     <group string="Programacion">
                         <group>
                             <field name="print_hour"/>
-                            <p class="text-muted">Hora del dia en que se imprimira automaticamente el resumen de pedidos.</p>
+                            <p class="text-muted">Hora de impresion automatica.</p>
+                        </group>
+                        <group>
+                            <field name="print_email_active"/>
                         </group>
                     </group>
+
+                    <group string="Notificacion Email">
+                        <group>
+                            <field name="print_email_to" placeholder="obrador@ejemplo.com"/>
+                        </group>
+                    </group>
+
+                    <notebook>
+                        <page string="Modulo 1 - Totales" name="module1">
+                            <div class="d-flex align-items-center gap-3 mb-2">
+                                <field name="module1_active" widget="boolean_toggle"/>
+                                <label for="module1_active" string="Imprimir modulo" class="mb-0"/>
+                                <span class="fw-bold ms-3 me-1">Titulo:</span>
+                                <field name="module1_title" class="flex-grow-1"/>
+                            </div>
+                            <field name="module1_line_ids">
+                                <list editable="bottom">
+                                    <field name="category_id"/>
+                                    <field name="copies"/>
+                                </list>
+                            </field>
+                        </page>
+
+                        <page string="Modulo 2 - Encargos" name="module2">
+                            <div class="d-flex align-items-center gap-3 mb-2">
+                                <field name="module2_active" widget="boolean_toggle"/>
+                                <label for="module2_active" string="Imprimir modulo" class="mb-0"/>
+                                <span class="fw-bold ms-3 me-1">Titulo:</span>
+                                <field name="module2_title" class="flex-grow-1"/>
+                            </div>
+                            <field name="module2_description" readonly="1"/>
+                            <group string="Excluir categorias">
+                                <field name="module2_exclude_category_ids" widget="many2many_tags"
+                                    options="{'no_create': True}"/>
+                            </group>
+                        </page>
+
+                        <page string="Modulo 3 - Clientes" name="module3">
+                            <div class="d-flex align-items-center gap-3 mb-2">
+                                <field name="module3_active" widget="boolean_toggle"/>
+                                <label for="module3_active" string="Imprimir modulo" class="mb-0"/>
+                                <span class="fw-bold ms-3 me-1">Titulo:</span>
+                                <field name="module3_title" class="flex-grow-1"/>
+                            </div>
+                            <field name="module3_description" readonly="1"/>
+                        </page>
+
+                        <page string="Modulo 4 - Encargos" name="module4">
+                            <div class="d-flex align-items-center gap-3 mb-2">
+                                <field name="module4_active" widget="boolean_toggle"/>
+                                <label for="module4_active" string="Imprimir modulo" class="mb-0"/>
+                                <span class="fw-bold ms-3 me-1">Titulo:</span>
+                                <field name="module4_title" class="flex-grow-1"/>
+                            </div>
+                            <field name="module4_description" readonly="1"/>
+                            <field name="module4_line_ids">
+                                <list editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="category_id"/>
+                                </list>
+                            </field>
+                        </page>
+
+                        <page string="Modulo 5 - Pedidos" name="module5">
+                            <div class="d-flex align-items-center gap-3 mb-2">
+                                <field name="module5_active" widget="boolean_toggle"/>
+                                <label for="module5_active" string="Imprimir modulo" class="mb-0"/>
+                                <span class="fw-bold ms-3 me-1">Titulo:</span>
+                                <field name="module5_title" class="flex-grow-1"/>
+                            </div>
+                            <field name="module5_description" readonly="1"/>
+                            <group string="Origen de los pedidos">
+                                <field name="module5_origin_web" widget="boolean_toggle"/> Pedidos Web
+                                <field name="module5_origin_encargo" widget="boolean_toggle"/> Encargos Tienda
+                                <field name="module5_origin_pedido" widget="boolean_toggle"/> Pedidos Tienda
+                            </group>
+                            <group string="Categorias a incluir">
+                                <field name="module5_category_ids" widget="many2many_tags"
+                                    options="{'no_create': True}"/>
+                            </group>
+                        </page>
+                    </notebook>
                 </sheet>
             </form>
         </field>
@@ -34,7 +125,15 @@
         <field name="res_model">tpv.pedido.config</field>
         <field name="view_mode">form</field>
         <field name="help" type="html">
-            <p>Configure la impresora del obrador y la hora de impresion automatica.</p>
+            <p>Configure la impresora del obrador, la hora de impresion automatica y los modulos del reporte.</p>
         </field>
+    </record>
+
+    <!-- Server action to open the singleton config record -->
+    <record id="action_open_tpv_pedido_config" model="ir.actions.server">
+        <field name="name">Configuracion Impresora</field>
+        <field name="model_id" ref="model_tpv_pedido_config"/>
+        <field name="state">code</field>
+        <field name="code">action = model.action_open_config()</field>
     </record>
 </odoo>
