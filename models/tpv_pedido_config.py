@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import base64
+
 from odoo import api, fields, models
 
 
@@ -98,6 +100,67 @@ class TpvPedidoConfig(models.Model):
             'view_mode': 'form',
             'res_id': config.id,
             'target': 'current',
+        }
+
+    def action_print_report(self):
+        """Genera el reporte PDF de los 5 modulos inmediatamente."""
+        pedido_model = self.env['tpv.pedido']
+        from datetime import datetime, timedelta
+
+        today = fields.Date.today()
+
+        # Get pedidos (same logic as cron)
+        pedidos_tienda = pedido_model.search([
+            ('state', '=', 'confirmed'),
+            ('tipo_pedido', '=', 'pedido_tienda'),
+            ('fecha_entrega', '=', today),
+        ])
+        pedidos_encargo = pedido_model.search([
+            ('state', '=', 'confirmed'),
+            ('tipo_pedido', '=', 'encargo'),
+            ('fecha_entrega', '=', today + timedelta(days=1)),
+        ])
+        web_orders = self.env['sale.order'].search([
+            ('fecha_entrega', '=', today + timedelta(days=1)),
+            ('state', '=', 'sale'),
+        ])
+
+        all_pedidos = pedidos_tienda + pedidos_encargo
+
+        # Generate report
+        data = {
+            'fecha': today,
+            'bloque1': pedido_model._get_bloque1_data(all_pedidos, web_orders),
+            'bloque2': pedido_model._get_bloque2_data(web_orders),
+            'bloque3': pedido_model._get_bloque3_data(all_pedidos),
+            'bloque4': pedido_model._get_bloque4_data(all_pedidos),
+            'bloque5': pedido_model._get_bloque5_data(all_pedidos, web_orders),
+            'module1_title': self.module1_title,
+            'module2_title': self.module2_title,
+            'module3_title': self.module3_title,
+            'module4_title': self.module4_title,
+            'module5_title': self.module5_title,
+            'docs': all_pedidos,
+            'web_orders': web_orders,
+        }
+
+        pdf_content, _ = self.env['ir.actions.report']._render_qweb_pdf(
+            'tpv_pedidos.action_report_pedido_obrador',
+            res_ids=all_pedidos.ids,
+            data=data,
+        )
+
+        # Create attachment and return download action
+        attachment = self.env['ir.attachment'].create({
+            'name': 'reporte_obrador_%s.pdf' % today,
+            'datas': base64.b64encode(pdf_content).decode(),
+            'mimetype': 'application/pdf',
+        })
+
+        return {
+            'type': 'ir.actions.act_url',
+            'url': '/web/content/%s?download=true' % attachment.id,
+            'target': 'self',
         }
 
     @api.model_create_multi

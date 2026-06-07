@@ -24,9 +24,9 @@
         action="tpv_nota_categoria_action"
         sequence="20"/>
 
-    <!-- Submenú Configuración Impresora (usa server action para singleton) -->
+    <!-- Submenú Configuración Obrador (usa server action para singleton) -->
     <menuitem id="menu_tpv_pedidos_config"
-        name="Configuración Impresora"
+        name="Configuración Obrador"
         parent="menu_tpv_pedidos_root"
         action="action_open_tpv_pedido_config"
         sequence="25"
