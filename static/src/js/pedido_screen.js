@@ -153,6 +153,12 @@ class PedidoScreen extends Component {
         this.orm = useService("orm");
         this.notification = useService("notification");
 
+        // Calculate tomorrow's date in YYYY-MM-DD format
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const tomorrowStr = tomorrow.toISOString().split('T')[0];
+        this._defaultFechaEntrega = tomorrowStr;
+
         this.state = useState({
             selectedCategoryId: null,
             posCategories: [],
@@ -163,7 +169,7 @@ class PedidoScreen extends Component {
             editingPedidoId: null,
             editingPedidoName: "",
             nota_general: "",
-            fecha_entrega: "",
+            fecha_entrega: tomorrowStr,
         });
 
         onMounted(() => {
@@ -624,7 +630,7 @@ class PedidoScreen extends Component {
         this.state.editingPedidoId = pedido.id;
         this.state.editingPedidoName = pedido.name;
         this.state.nota_general = pedido.nota_general || "";
-        this.state.fecha_entrega = pedido.fecha_entrega || "";
+        this.state.fecha_entrega = pedido.fecha_entrega || this._defaultFechaEntrega;
 
         // Re-fetch prices from pos.models
         if (this.pos.models && this.pos.models["product.product"]) {

@@ -188,6 +188,15 @@ class TpvPedido(models.Model):
             if obrador:
                 partner_id = obrador.id
 
+        # Validate fecha_entrega
+        if fecha_entrega:
+            fecha_entrega_date = fields.Date.to_date(fecha_entrega)
+            min_date = fields.Date.today() + timedelta(days=1)
+            if fecha_entrega_date < min_date:
+                raise ValidationError(
+                    _('La fecha de entrega debe ser igual o posterior a mañana.')
+                )
+
         line_vals = []
         for line in lines:
             line_vals.append((0, 0, {
