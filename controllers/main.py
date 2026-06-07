@@ -2,6 +2,8 @@
 
 import logging
 
+from datetime import datetime
+
 from odoo import http
 from odoo.http import request
 
@@ -116,3 +118,69 @@ class TpvPedidoController(http.Controller):
                 'line_count': len(p.line_ids),
             })
         return result
+
+    @http.route('/tpv_pedidos/informes', type='http', auth='user', methods=['GET', 'POST'])
+    def web_informes(self, **kwargs):
+        """Web page with order reports and filters. Accessible to backend users only."""
+        if not request.env.user._is_internal():
+            return request.redirect('/web')
+
+        Pedido = request.env['tpv.pedido'].sudo()
+        today = datetime.now().strftime('%Y-%m-%d')
+
+        # Get filters from request
+        fecha_desde = kwargs.get('fecha_desde', today)
+        fecha_hasta = kwargs.get('fecha_hasta', today)
+        tienda_id = kwargs.get('tienda_id', '')
+        tipo_pedido = kwargs.get('tipo_pedido', '')
+
+        # Base domain for tpv.pedido
+        domain = [('state', '=', 'confirmed')]
+        if fecha_desde:
+            domain.append(('fecha_entrega', '>=', fecha_desde))
+        if fecha_hasta:
+            domain.append(('fecha_entrega', '<=', fecha_hasta))
+        if tienda_id:
+            domain.append(('pos_config_id', '=', int(tienda_id)))
+        if tipo_pedido:
+            domain.append(('tipo_pedido', '=', tipo_pedido))
+
+        all_pedidos = Pedido.search(domain, order='fecha_entrega, pos_config_id, name')
+
+        # Web orders (sale.order) with same date filter
+        web_domain = [
+            ('state', '=', 'sale'),
+        ]
+        if fecha_desde:
+            web_domain.append(('fecha_entrega', '>=', fecha_desde))
+        if fecha_hasta:
+            web_domain.append(('fecha_entrega', '<=', fecha_hasta))
+        web_orders = request.env['sale.order'].sudo().search(web_domain)
+
+        # Get config for titles and active modules
+        config = request.env['tpv.pedido.config'].sudo().search([], limit=1)
+
+        # Build report data using same methods as PDF report
+        data = {
+            'fecha': today,
+            'bloque1': Pedido._get_bloque1_data(all_pedidos, web_orders) if config and config.module1_active else {},
+            'bloque2': Pedido._get_bloque2_data(web_orders) if config and config.module2_active else {},
+            'bloque3': Pedido._get_bloque3_data(all_pedidos) if config and config.module3_active else {},
+            'bloque4': Pedido._get_bloque4_data(all_pedidos) if config and config.module4_active else {},
+            'bloque5': Pedido._get_bloque5_data(all_pedidos, web_orders) if config and config.module5_active else {},
+            'module1_title': config.module1_title if config else 'Totales por Familia Principal',
+            'module2_title': config.module2_title if config else 'Encargos de Tiendas',
+            'module3_title': config.module3_title if config else 'Pedidos de Clientes',
+            'module4_title': config.module4_title if config else 'Encargos Especificos',
+            'module5_title': config.module5_title if config else 'Pedidos Personalizados',
+        }
+
+        return request.render('tpv_pedidos.web_informes_page', {
+            'data': data,
+            'categories': request.env['pos.category'].sudo().search_read([], ['id', 'name']),
+            'tiendas': request.env['pos.config'].sudo().search_read([], ['id', 'name']),
+            'fecha_desde': fecha_desde,
+            'fecha_hasta': fecha_hasta,
+            'tienda_id': tienda_id,
+            'tipo_pedido': tipo_pedido,
+        })
