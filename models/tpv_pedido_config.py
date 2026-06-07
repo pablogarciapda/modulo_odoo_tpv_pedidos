@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 import base64
 
-from odoo import api, fields, models
+from odoo import api, fields, models, _
+from odoo.exceptions import UserError
 
 
 class TpvPedidoConfig(models.Model):
@@ -126,6 +127,9 @@ class TpvPedidoConfig(models.Model):
         ])
 
         all_pedidos = pedidos_tienda + pedidos_encargo
+
+        if not all_pedidos and not web_orders:
+            raise UserError(_('No hay pedidos para generar el reporte en la fecha de hoy.'))
 
         # Generate report
         data = {
