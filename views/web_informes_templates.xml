@@ -91,8 +91,10 @@
                                    class="btn btn-success w-100">
                                     <i class="fa fa-download"/> Descargar PDF
                                 </a>
+                            </div>
+                            <div class="col-md-3 mb-2" style="padding-top: 24px;">
                                 <a t-att-href="'/tpv_pedidos/informes/csv?fecha_desde=' + fecha_desde + '&amp;fecha_hasta=' + fecha_hasta + '&amp;tienda_id=' + tienda_id + '&amp;tipo_pedido=' + tipo_pedido"
-                                   class="btn btn-info" style="color:#fff;">
+                                   class="btn btn-info w-100" style="color:#fff;">
                                     <i class="fa fa-file-excel-o"/> Descargar CSV
                                 </a>
                             </div>
