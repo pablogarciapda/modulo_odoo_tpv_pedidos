@@ -5,290 +5,121 @@
             <t t-set="title" t-value="'Informes de Pedidos - Obrador'"/>
             <div class="o_content">
                 <div class="container-fluid py-3">
-                        <h2 class="mb-4">Informes de Pedidos del Obrador</h2>
+                    <h2 class="mb-4">Informes de Pedidos del Obrador</h2>
 
-                        <!-- Filters -->
-                        <form method="GET" class="mb-4 p-3 bg-light rounded border">
-                            <div class="row">
-                                <div class="col-md-3 mb-2">
-                                    <label class="form-label">Fecha desde</label>
-                                    <input type="date" name="fecha_desde"
-                                        t-att-value="fecha_desde" class="form-control"/>
-                                </div>
-                                <div class="col-md-3 mb-2">
-                                    <label class="form-label">Fecha hasta</label>
-                                    <input type="date" name="fecha_hasta"
-                                        t-att-value="fecha_hasta" class="form-control"/>
-                                </div>
-                                <div class="col-md-2 mb-2">
-                                    <label class="form-label">Tienda</label>
-                                    <select name="tienda_id" class="form-control">
-                                        <option value="">Todas</option>
-                                        <t t-foreach="tiendas" t-as="t">
-                                            <option t-att-value="t['id']"
-                                                t-att-selected="tienda_id == str(t['id'])"
-                                                t-esc="t['name']"/>
-                                        </t>
-                                    </select>
-                                </div>
-                                <div class="col-md-2 mb-2">
-                                    <label class="form-label">Tipo</label>
-                                    <select name="tipo_pedido" class="form-control">
-                                        <option value="">Todos</option>
-                                        <option value="encargo" t-att-selected="tipo_pedido == 'encargo'">Encargo</option>
-                                        <option value="pedido_tienda" t-att-selected="tipo_pedido == 'pedido_tienda'">Pedido Tienda</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-2 mb-2 d-flex align-items-end">
-                                    <button type="submit" class="btn btn-primary w-100">
-                                        <i class="fa fa-filter"/> Filtrar
-                                    </button>
-                                </div>
+                    <!-- Filters -->
+                    <form method="GET" class="mb-4 p-3 bg-light rounded border">
+                        <div class="row">
+                            <div class="col-md-3 mb-2">
+                                <label class="form-label">Fecha desde</label>
+                                <input type="date" name="fecha_desde"
+                                    t-att-value="fecha_desde" class="form-control"/>
                             </div>
-                        </form>
-
-                        <!-- Download PDF button -->
-                    <div class="mb-3">
-                        <a t-att-href="'/tpv_pedidos/informes/pdf?fecha_desde=' + fecha_desde + '&amp;fecha_hasta=' + fecha_hasta + '&amp;tienda_id=' + tienda_id + '&amp;tipo_pedido=' + tipo_pedido"
-                           class="btn btn-primary">
-                            <i class="fa fa-download"/> Descargar PDF
-                        </a>
-                    </div>
-
-                        <hr class="mb-4"/>
-
-                        <!-- ============================================ -->
-                        <!-- Bloque 1: Totales por familia                -->
-                        <!-- ============================================ -->
-                        <t t-if="data.get('bloque1') and data['bloque1']">
-                            <h3 class="mb-3" t-esc="data.get('module1_title', 'Modulo 1')"/>
-                            <t t-foreach="data['bloque1']" t-as="cat_id">
-                                <t t-set="cat_data" t-value="data['bloque1'][cat_id]"/>
-                                <h4 class="mt-3 mb-2" t-esc="cat_data['name']"/>
-                                <t t-if="cat_data['products']">
-                                    <div class="table-responsive">
-                                        <table class="table table-sm table-bordered table-striped">
-                                            <thead class="table-dark">
-                                                <tr>
-                                                    <th>Producto</th>
-                                                    <th class="text-end">Total</th>
-                                                    <th class="text-end">Ext</th>
-                                                    <t t-foreach="cat_data['products'][0]['tiendas']" t-as="tname">
-                                                        <th class="text-end" t-esc="tname"/>
-                                                    </t>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <t t-foreach="cat_data['products']" t-as="prod">
-                                                    <tr>
-                                                        <td t-esc="prod['name']"/>
-                                                        <td class="text-end" t-esc="int(prod['total'])"/>
-                                                        <td class="text-end" t-esc="int(prod['exterior'])"/>
-                                                        <t t-foreach="prod['tiendas']" t-as="tienda_key">
-                                                            <td class="text-end" t-esc="int(prod['tiendas'][tienda_key])"/>
-                                                        </t>
-                                                    </tr>
-                                                </t>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </t>
-                                <t t-else="">
-                                    <p class="text-muted">No hay productos en esta categoría.</p>
-                                </t>
-                            </t>
-                        </t>
-
-                        <!-- ============================================ -->
-                        <!-- Bloque 2: Clientes externos                  -->
-                        <!-- ============================================ -->
-                        <t t-if="data.get('bloque2') and data['bloque2']">
-                            <h3 class="mt-4 mb-3" t-esc="data.get('module2_title', 'Modulo 2')"/>
-                            <div class="row">
-                                <t t-foreach="data['bloque2']" t-as="cliente">
-                                    <div class="col-md-6 mb-3">
-                                        <div class="card h-100">
-                                            <div class="card-body">
-                                                <h5 class="card-title" t-esc="cliente['name']"/>
-                                                <t t-if="cliente.get('phone')">
-                                                    <p class="mb-1"><strong>Teléfono:</strong> <t t-esc="cliente['phone']"/></p>
-                                                </t>
-                                                <t t-if="cliente.get('delivery')">
-                                                    <p class="mb-1"><strong>Entrega:</strong> <t t-esc="cliente['delivery']"/></p>
-                                                </t>
-                                                <t t-if="cliente.get('address')">
-                                                    <p class="mb-1"><strong>Dirección:</strong> <t t-esc="cliente['address']"/></p>
-                                                </t>
-                                                <t t-if="cliente.get('total_amount')">
-                                                    <p class="mb-1"><strong>Total:</strong> <t t-esc="cliente['total_amount']"/> €</p>
-                                                </t>
-                                                <table class="table table-sm table-bordered mt-2 mb-0">
-                                                    <thead>
-                                                        <tr>
-                                                            <th>Producto</th>
-                                                            <th class="text-end">Cantidad</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        <t t-foreach="cliente['products']" t-as="prod">
-                                                            <tr>
-                                                                <td t-esc="prod['name']"/>
-                                                                <td class="text-end" t-esc="int(prod['qty'])"/>
-                                                            </tr>
-                                                        </t>
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </t>
+                            <div class="col-md-3 mb-2">
+                                <label class="form-label">Fecha hasta</label>
+                                <input type="date" name="fecha_hasta"
+                                    t-att-value="fecha_hasta" class="form-control"/>
                             </div>
-                        </t>
-
-                        <!-- ============================================ -->
-                        <!-- Bloque 3: Encargos de tiendas (Modulo 2)     -->
-                        <!-- ============================================ -->
-                        <t t-if="data.get('bloque3') and data['bloque3']">
-                            <h3 class="mt-4 mb-3" t-esc="data.get('module3_title', 'Modulo 3')"/>
-                            <t t-foreach="data['bloque3']" t-as="tienda_name">
-                                <h4 class="mt-3 mb-2" t-esc="tienda_name"/>
-                                <t t-foreach="data['bloque3'][tienda_name]" t-as="enc">
-                                    <div class="card mb-2">
-                                        <div class="card-header py-2">
-                                            <strong t-esc="enc['name']"/>
-                                            <t t-if="enc.get('nota')">
-                                                <span class="text-muted fst-italic ms-2" t-esc="enc['nota']"/>
-                                            </t>
-                                        </div>
-                                        <div class="card-body p-2">
-                                            <table class="table table-sm table-bordered mb-0">
-                                                <thead>
-                                                    <tr>
-                                                        <th>Producto</th>
-                                                        <th class="text-end">Cantidad</th>
-                                                        <th>Nota</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    <t t-foreach="enc['lines']" t-as="l">
-                                                        <tr>
-                                                            <td t-esc="l['name']"/>
-                                                            <td class="text-end" t-esc="int(l['qty'])"/>
-                                                            <td>
-                                                                <t t-if="l.get('nota')" t-esc="l['nota']"/>
-                                                                <t t-else=""><span class="text-muted">—</span></t>
-                                                            </td>
-                                                        </tr>
-                                                    </t>
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                                </t>
-                            </t>
-                        </t>
-
-                        <!-- ============================================ -->
-                        <!-- Bloque 4: Encargos específicos (Modulo 4)    -->
-                        <!-- ============================================ -->
-                        <t t-if="data.get('bloque4') and data['bloque4']">
-                            <h3 class="mt-4 mb-3" t-esc="data.get('module4_title', 'Modulo 4')"/>
-                            <t t-foreach="data['bloque4']" t-as="tienda_name">
-                                <h4 class="mt-3 mb-2" t-esc="tienda_name"/>
-                                <t t-foreach="data['bloque4'][tienda_name]" t-as="enc">
-                                    <div class="card mb-2">
-                                        <div class="card-header py-2">
-                                            <strong t-esc="enc['name']"/>
-                                            <t t-if="enc.get('nota')">
-                                                <span class="text-muted fst-italic ms-2" t-esc="enc['nota']"/>
-                                            </t>
-                                        </div>
-                                        <div class="card-body p-2">
-                                            <table class="table table-sm table-bordered mb-0">
-                                                <thead>
-                                                    <tr>
-                                                        <th>Producto</th>
-                                                        <th class="text-end">Cantidad</th>
-                                                        <th>Nota</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    <t t-foreach="enc['lines']" t-as="l">
-                                                        <tr>
-                                                            <td t-esc="l['name']"/>
-                                                            <td class="text-end" t-esc="int(l['qty'])"/>
-                                                            <td>
-                                                                <t t-if="l.get('nota')" t-esc="l['nota']"/>
-                                                                <t t-else=""><span class="text-muted">—</span></t>
-                                                            </td>
-                                                        </tr>
-                                                    </t>
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                                </t>
-                            </t>
-                        </t>
-
-                        <!-- ============================================ -->
-                        <!-- Bloque 5: Pedidos personalizados (Modulo 5)  -->
-                        <!-- ============================================ -->
-                        <t t-if="data.get('bloque5') and data['bloque5']">
-                            <h3 class="mt-4 mb-3" t-esc="data.get('module5_title', 'Modulo 5')"/>
-                            <t t-foreach="data['bloque5']" t-as="pedido">
-                                <div class="card mb-2">
-                                    <div class="card-header py-2 d-flex justify-content-between align-items-center">
-                                        <strong t-esc="pedido['name']"/>
-                                        <span>
-                                            <t t-if="pedido.get('origen')">
-                                                <span class="badge bg-info me-1" t-esc="pedido['origen']"/>
-                                            </t>
-                                            <t t-if="pedido.get('tienda')">
-                                                <span class="badge bg-secondary" t-esc="pedido['tienda']"/>
-                                            </t>
-                                        </span>
-                                    </div>
-                                    <t t-if="pedido.get('nota')">
-                                        <div class="card-body py-1">
-                                            <em class="text-muted" t-esc="pedido['nota']"/>
-                                        </div>
+                            <div class="col-md-2 mb-2">
+                                <label class="form-label">Tienda</label>
+                                <select name="tienda_id" class="form-control">
+                                    <option value="">Todas</option>
+                                    <t t-foreach="tiendas" t-as="t">
+                                        <option t-att-value="t['id']"
+                                            t-att-selected="tienda_id == str(t['id'])"
+                                            t-esc="t['name']"/>
                                     </t>
-                                    <div class="card-body p-2">
-                                        <table class="table table-sm table-bordered mb-0">
-                                            <thead>
-                                                <tr>
-                                                    <th>Producto</th>
-                                                    <th class="text-end">Cantidad</th>
-                                                    <th>Nota</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <t t-foreach="pedido['lines']" t-as="l">
-                                                    <tr>
-                                                        <td t-esc="l['name']"/>
-                                                        <td class="text-end" t-esc="int(l['qty'])"/>
-                                                        <td>
-                                                            <t t-if="l.get('nota')" t-esc="l['nota']"/>
-                                                            <t t-else=""><span class="text-muted">—</span></t>
-                                                        </td>
-                                                    </tr>
-                                                </t>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </t>
-                        </t>
-
-                        <!-- Empty state -->
-                        <t t-if="not data.get('bloque1') and not data.get('bloque2') and not data.get('bloque3') and not data.get('bloque4') and not data.get('bloque5')">
-                            <div class="alert alert-info">
-                                <i class="fa fa-info-circle"/> No hay datos para los filtros seleccionados.
+                                </select>
                             </div>
-                        </t>
-                    </div>
+                            <div class="col-md-2 mb-2">
+                                <label class="form-label">Tipo</label>
+                                <select name="tipo_pedido" class="form-control">
+                                    <option value="">Todos</option>
+                                    <option value="encargo" t-att-selected="tipo_pedido == 'encargo'">Encargo</option>
+                                    <option value="pedido_tienda" t-att-selected="tipo_pedido == 'pedido_tienda'">Pedido Tienda</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2 mb-2">
+                                <label class="form-label">Producto</label>
+                                <select name="product_id" class="form-control">
+                                    <option value="">Todos</option>
+                                    <t t-foreach="productos" t-as="p">
+                                        <option t-att-value="p['id']"
+                                            t-att-selected="product_id == str(p['id'])"
+                                            t-esc="p['display_name']"/>
+                                    </t>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-3 mb-2">
+                                <label class="form-label">Categoria</label>
+                                <select name="category_id" class="form-control">
+                                    <option value="">Todas</option>
+                                    <t t-foreach="categorias" t-as="c">
+                                        <option t-att-value="c['id']"
+                                            t-att-selected="category_id == str(c['id'])"
+                                            t-esc="c['name']"/>
+                                    </t>
+                                </select>
+                            </div>
+                            <div class="col-md-3 mb-2" style="padding-top: 24px;">
+                                <button type="submit" class="btn btn-primary w-100">Filtrar</button>
+                            </div>
+                            <div class="col-md-3 mb-2" style="padding-top: 24px;">
+                                <a t-att-href="'/tpv_pedidos/informes/pdf?fecha_desde=' + fecha_desde + '&amp;fecha_hasta=' + fecha_hasta + '&amp;tienda_id=' + tienda_id + '&amp;tipo_pedido=' + tipo_pedido"
+                                   class="btn btn-success w-100">
+                                    <i class="fa fa-download"/> Descargar PDF
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+
+                    <hr/>
+
+                    <!-- Results table -->
+                    <t t-if="orders">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped table-hover">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Pedido</th>
+                                        <th>Fecha</th>
+                                        <th>Tienda</th>
+                                        <th>Tipo</th>
+                                        <th>Cliente</th>
+                                        <th>Producto</th>
+                                        <th>Categoria</th>
+                                        <th class="text-end">Cantidad</th>
+                                        <th>Nota</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="orders" t-as="o">
+                                        <tr>
+                                            <td t-esc="o['pedido']"/>
+                                            <td t-esc="o['fecha']"/>
+                                            <td t-esc="o['tienda']"/>
+                                            <td><span class="badge" t-att-class="'bg-' + ('warning' if o['tipo'] == 'Encargo' or o['tipo'] == 'encargo' else 'primary')" t-esc="o['tipo']"/></td>
+                                            <td t-esc="o['cliente']"/>
+                                            <td t-esc="o['producto']"/>
+                                            <td t-esc="o['categoria']"/>
+                                            <td class="text-end" t-esc="int(o['cantidad'])"/>
+                                            <td><small t-esc="o['nota'] or o['nota_general'] or ''"/></td>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
+                        </div>
+                        <p class="text-muted">Total: <t t-esc="len(orders)"/> lineas</p>
+                    </t>
+                    <t t-else="">
+                        <div class="alert alert-info">
+                            <i class="fa fa-info-circle"/> No hay datos para los filtros seleccionados.
+                        </div>
+                    </t>
                 </div>
-            </t>
+            </div>
+        </t>
     </template>
 </odoo>

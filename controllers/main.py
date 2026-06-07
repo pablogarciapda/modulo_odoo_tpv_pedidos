@@ -121,7 +121,7 @@ class TpvPedidoController(http.Controller):
 
     @http.route('/tpv_pedidos/informes', type='http', auth='user', methods=['GET', 'POST'])
     def web_informes(self, **kwargs):
-        """Web page with order reports and filters. Accessible to backend users only."""
+        """Web page with order reports and powerful filters. Independent from config modules."""
         if not request.env.user._is_internal():
             return request.redirect('/web')
 
@@ -133,8 +133,10 @@ class TpvPedidoController(http.Controller):
         fecha_hasta = kwargs.get('fecha_hasta', today)
         tienda_id = kwargs.get('tienda_id', '')
         tipo_pedido = kwargs.get('tipo_pedido', '')
+        product_id = kwargs.get('product_id', '')
+        category_id = kwargs.get('category_id', '')
 
-        # Base domain for tpv.pedido
+        # Build domain for tpv.pedido
         domain = [('state', '=', 'confirmed')]
         if fecha_desde:
             domain.append(('fecha_entrega', '>=', fecha_desde))
@@ -147,42 +149,71 @@ class TpvPedidoController(http.Controller):
 
         all_pedidos = Pedido.search(domain, order='fecha_entrega, pos_config_id, name')
 
-        # Web orders (sale.order) with same date filter
-        web_domain = [
-            ('state', '=', 'sale'),
-        ]
+        # Build flat order data (not using module blocks)
+        orders_data = []
+        for p in all_pedidos:
+            for line in p.line_ids:
+                # Filter by product
+                if product_id and line.product_id.id != int(product_id):
+                    continue
+                # Filter by category
+                if category_id:
+                    cat_ids = [c.id for c in line.product_id.pos_categ_ids]
+                    if int(category_id) not in cat_ids:
+                        continue
+                orders_data.append({
+                    'pedido': p.name,
+                    'fecha': p.fecha_entrega,
+                    'tienda': p.pos_config_id.name or '',
+                    'tipo': dict(p._fields['tipo_pedido'].selection).get(p.tipo_pedido, ''),
+                    'cliente': p.partner_id.name,
+                    'producto': line.product_id.display_name,
+                    'categoria': ', '.join([c.name for c in line.product_id.pos_categ_ids][:3]),
+                    'cantidad': line.qty,
+                    'nota': line.nota_linea or '',
+                    'nota_general': p.nota_general or '',
+                })
+
+        # Also include web orders (sale.order)
+        web_domain = [('state', '=', 'sale')]
         if fecha_desde:
             web_domain.append(('fecha_entrega', '>=', fecha_desde))
         if fecha_hasta:
             web_domain.append(('fecha_entrega', '<=', fecha_hasta))
         web_orders = request.env['sale.order'].sudo().search(web_domain)
-
-        # Get config for titles and active modules
-        config = request.env['tpv.pedido.config'].sudo().search([], limit=1)
-
-        # Build report data using same methods as PDF report
-        data = {
-            'fecha': today,
-            'bloque1': Pedido._get_bloque1_data(all_pedidos, web_orders) if config and config.module1_active else {},
-            'bloque2': Pedido._get_bloque2_data(web_orders) if config and config.module2_active else {},
-            'bloque3': Pedido._get_bloque3_data(all_pedidos) if config and config.module3_active else {},
-            'bloque4': Pedido._get_bloque4_data(all_pedidos) if config and config.module4_active else {},
-            'bloque5': Pedido._get_bloque5_data(all_pedidos, web_orders) if config and config.module5_active else {},
-            'module1_title': config.module1_title if config else 'Totales por Familia Principal',
-            'module2_title': config.module2_title if config else 'Encargos de Tiendas',
-            'module3_title': config.module3_title if config else 'Pedidos de Clientes',
-            'module4_title': config.module4_title if config else 'Encargos Especificos',
-            'module5_title': config.module5_title if config else 'Pedidos Personalizados',
-        }
+        for so in web_orders:
+            for line in so.order_line:
+                if product_id and line.product_id.id != int(product_id):
+                    continue
+                if category_id:
+                    cat_ids = [c.id for c in line.product_id.pos_categ_ids]
+                    if int(category_id) not in cat_ids:
+                        continue
+                orders_data.append({
+                    'pedido': so.name,
+                    'fecha': so.fecha_entrega,
+                    'tienda': 'Web',
+                    'tipo': 'Web',
+                    'cliente': so.partner_id.name,
+                    'producto': line.product_id.display_name,
+                    'categoria': ', '.join([c.name for c in line.product_id.pos_categ_ids][:3]),
+                    'cantidad': line.product_uom_qty,
+                    'nota': '',
+                    'nota_general': so.note or '',
+                })
 
         return request.render('tpv_pedidos.web_informes_page', {
-            'data': data,
-            'categories': request.env['pos.category'].sudo().search_read([], ['id', 'name']),
+            'orders': orders_data,
             'tiendas': request.env['pos.config'].sudo().search_read([], ['id', 'name']),
+            'productos': request.env['product.product'].sudo().search_read(
+                [('available_in_pos', '=', True)], ['id', 'display_name']),
+            'categorias': request.env['pos.category'].sudo().search_read([], ['id', 'name']),
             'fecha_desde': fecha_desde,
             'fecha_hasta': fecha_hasta,
             'tienda_id': tienda_id,
             'tipo_pedido': tipo_pedido,
+            'product_id': product_id,
+            'category_id': category_id,
         })
 
     @http.route('/tpv_pedidos/informes/pdf', type='http', auth='user', methods=['GET'])
