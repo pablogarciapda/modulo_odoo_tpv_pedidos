@@ -601,7 +601,7 @@ class TpvPedido(models.Model):
     def _get_all_subcategory_ids(self, category):
         """Recursively get all subcategory IDs."""
         ids = [category.id]
-        for child in category.child_id:
+        for child in category.child_ids:
             ids.extend(self._get_all_subcategory_ids(child))
         return ids
 
