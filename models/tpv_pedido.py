@@ -533,6 +533,13 @@ class TpvPedido(models.Model):
         return pdf_content
 
     @api.model
+    def _get_uom_qty(self, product, qty):
+        """Returns the quantity multiplied by UoM factor if > 1."""
+        if product and product.uom_id and product.uom_id.factor and product.uom_id.factor > 1:
+            return qty * product.uom_id.factor
+        return qty
+
+    @api.model
     def _get_bloque1_data(self, pedidos, web_orders):
         """
         Bloque 1: Totales por familia principal.
@@ -572,12 +579,12 @@ class TpvPedido(models.Model):
                                     'exterior': 0.0,
                                     'tiendas': {},
                                 }
-                            product_totals[l.product_id.id]['total'] += l.qty
+                            product_totals[l.product_id.id]['total'] += self._get_uom_qty(l.product_id, l.qty)
 
                             tienda = p.pos_config_id.name if p.pos_config_id else 'Desconocida'
                             if tienda not in product_totals[l.product_id.id]['tiendas']:
                                 product_totals[l.product_id.id]['tiendas'][tienda] = 0.0
-                            product_totals[l.product_id.id]['tiendas'][tienda] += l.qty
+                            product_totals[l.product_id.id]['tiendas'][tienda] += self._get_uom_qty(l.product_id, l.qty)
 
             # Add web orders too
             for so in web_orders:
@@ -592,8 +599,8 @@ class TpvPedido(models.Model):
                                     'exterior': 0.0,
                                     'tiendas': {},
                                 }
-                            product_totals[l.product_id.id]['total'] += l.product_uom_qty
-                            product_totals[l.product_id.id]['exterior'] += l.product_uom_qty
+                            product_totals[l.product_id.id]['total'] += self._get_uom_qty(l.product_id, l.product_uom_qty)
+                            product_totals[l.product_id.id]['exterior'] += self._get_uom_qty(l.product_id, l.product_uom_qty)
 
             # Sort by total desc
             sorted_products = sorted(
@@ -681,7 +688,7 @@ class TpvPedido(models.Model):
                         nota = '[%s] %s' % (line.nota_categoria_id.name, nota)
                     lines.append({
                         'name': line.product_id.display_name,
-                        'qty': line.qty,
+                        'qty': self._get_uom_qty(line.product_id, line.qty),
                         'nota': nota.strip(),
                     })
 
@@ -731,7 +738,7 @@ class TpvPedido(models.Model):
                         nota = '[%s] %s' % (line.nota_categoria_id.name, nota)
                     lines.append({
                         'name': line.product_id.display_name,
-                        'qty': line.qty,
+                        'qty': self._get_uom_qty(line.product_id, line.qty),
                         'nota': nota.strip(),
                     })
 
@@ -780,7 +787,7 @@ class TpvPedido(models.Model):
                     nota = '[%s] %s' % (line.nota_categoria_id.name, nota)
                 lines.append({
                     'name': line.product_id.display_name,
-                    'qty': line.qty,
+                    'qty': self._get_uom_qty(line.product_id, line.qty),
                     'nota': nota.strip(),
                 })
             if lines:
@@ -803,7 +810,7 @@ class TpvPedido(models.Model):
                             continue
                     lines.append({
                         'name': line.product_id.display_name,
-                        'qty': line.product_uom_qty,
+                        'qty': self._get_uom_qty(line.product_id, line.product_uom_qty),
                         'nota': '',
                     })
                 if lines:

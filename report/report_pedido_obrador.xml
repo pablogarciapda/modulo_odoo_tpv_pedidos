@@ -58,10 +58,10 @@
                                     <t t-foreach="cat_data['products']" t-as="prod">
                                         <tr>
                                             <td t-esc="prod['name']"/>
-                                            <td class="text-end" t-esc="prod['total']"/>
-                                            <td class="text-end" t-esc="prod['exterior']"/>
+                                            <td class="text-end" t-esc="int(prod['total'])"/>
+                                            <td class="text-end" t-esc="int(prod['exterior'])"/>
                                             <t t-foreach="prod['tiendas']" t-as="tienda_nombre" t-key="tienda_nombre_index">
-                                                <td class="text-end" t-esc="prod['tiendas'][tienda_nombre]"/>
+                                                <td class="text-end" t-esc="int(prod['tiendas'][tienda_nombre])"/>
                                             </t>
                                         </tr>
                                     </t>
@@ -92,7 +92,7 @@
                                 <t t-foreach="cliente['products']" t-as="prod">
                                     <tr>
                                         <td t-esc="prod['name']"/>
-                                        <td class="text-end" t-esc="prod['qty']"/>
+                                        <td class="text-end" t-esc="int(prod['qty'])"/>
                                     </tr>
                                 </t>
                             </tbody>
@@ -121,7 +121,7 @@
                                 <ul>
                                     <t t-foreach="enc['lines']" t-as="l">
                                         <li>
-                                            <t t-esc="l['name']"/> — <t t-esc="l['qty']"/> uds
+                                            <t t-esc="l['name']"/> — <t t-esc="int(l['qty'])"/> uds
                                             <t t-if="l['nota']">
                                                 <span class="badge bg-info" t-esc="l['nota']"/>
                                             </t>
@@ -154,7 +154,7 @@
                                 <ul>
                                     <t t-foreach="enc['lines']" t-as="l">
                                         <li>
-                                            <t t-esc="l['name']"/> — <t t-esc="l['qty']"/> uds
+                                            <t t-esc="l['name']"/> — <t t-esc="int(l['qty'])"/> uds
                                             <t t-if="l['nota']">
                                                 <span class="badge bg-info" t-esc="l['nota']"/>
                                             </t>
@@ -196,7 +196,7 @@
                                 <t t-foreach="pedido['lines']" t-as="l">
                                     <tr>
                                         <td t-esc="l['name']"/>
-                                        <td class="text-end" t-esc="l['qty']"/>
+                                        <td class="text-end" t-esc="int(l['qty'])"/>
                                         <td><t t-if="l['nota']" t-esc="l['nota']"/></td>
                                     </tr>
                                 </t>

@@ -17,11 +17,10 @@
 - Productos ordenados alfabéticamente o por cantidad descendente
 
 ### Productos por docenas
-- Algunos productos se piden por docenas (1 pedido = 12 unidades)
-- En el reporte, mostrar cantidad real: qty * 12
-- **Propuesta**: Campo `tpv_dozen_product` (Boolean) en `product.template` o `pos.category`
-  - Si está marcado, la cantidad mostrada en el reporte = qty * 12
-  - Si no, la cantidad mostrada = qty
+- Algunos productos usan UoM "Docena(s)" (factor=12 sobre "Unidad(es)")
+- En el reporte: si `product.uom_id.factor > 1`, multiplicar qty por el factor
+- Así "1 Docena" → 12 unidades en el reporte
+- No hace falta campo nuevo, se lee de la UoM del producto
 
 ## 2. Personalización del Diseño del Reporte
 
