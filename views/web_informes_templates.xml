@@ -48,12 +48,12 @@
                         </form>
 
                         <!-- Download PDF button -->
-                        <div class="mb-3">
-                            <a t-att-href="'/tpv_pedidos/informes/pdf?fecha_desde=' + fecha_desde + '&amp;fecha_hasta=' + fecha_hasta + '&amp;tienda_id=' + tienda_id + '&amp;tipo_pedido=' + tipo_pedido"
-                               class="btn btn-success">
-                                <i class="fa fa-download"/> Descargar PDF
-                            </a>
-                        </div>
+                    <div class="mb-3">
+                        <a t-att-href="'/tpv_pedidos/informes/pdf?fecha_desde=' + fecha_desde + '&amp;fecha_hasta=' + fecha_hasta + '&amp;tienda_id=' + tienda_id + '&amp;tipo_pedido=' + tipo_pedido"
+                           class="btn btn-primary">
+                            <i class="fa fa-download"/> Descargar PDF
+                        </a>
+                    </div>
 
                         <hr class="mb-4"/>
 

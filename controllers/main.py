@@ -184,3 +184,19 @@ class TpvPedidoController(http.Controller):
             'tienda_id': tienda_id,
             'tipo_pedido': tipo_pedido,
         })
+
+    @http.route('/tpv_pedidos/informes/pdf', type='http', auth='user', methods=['GET'])
+    def web_informes_pdf(self, **kwargs):
+        """Descarga el PDF de informes con los mismos filtros."""
+        if not request.env.user._is_internal():
+            return request.redirect('/web')
+
+        config = request.env['tpv.pedido.config'].sudo().search([], limit=1)
+        if not config:
+            return request.not_found()
+
+        # Call the print method and redirect to the generated attachment
+        action = config.action_print_report()
+        if action and action.get('url'):
+            return request.redirect(action['url'])
+        return request.not_found()
