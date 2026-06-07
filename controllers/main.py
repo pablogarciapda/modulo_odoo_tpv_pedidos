@@ -144,8 +144,11 @@ class TpvPedidoController(http.Controller):
             domain.append(('fecha_entrega', '<=', fecha_hasta))
         if tienda_id:
             domain.append(('pos_config_id', '=', int(tienda_id)))
-        if tipo_pedido:
+        if tipo_pedido and tipo_pedido != 'ext':
             domain.append(('tipo_pedido', '=', tipo_pedido))
+        elif tipo_pedido == 'ext':
+            # Only show web orders, no TPV pedidos
+            domain.append(('id', '=', 0))  # No results from tpv.pedido
 
         all_pedidos = Pedido.search(domain, order='fecha_entrega, pos_config_id, name')
 
@@ -174,33 +177,34 @@ class TpvPedidoController(http.Controller):
                     'nota_general': p.nota_general or '',
                 })
 
-        # Also include web orders (sale.order)
-        web_domain = [('state', '=', 'sale')]
-        if fecha_desde:
-            web_domain.append(('fecha_entrega', '>=', fecha_desde))
-        if fecha_hasta:
-            web_domain.append(('fecha_entrega', '<=', fecha_hasta))
-        web_orders = request.env['sale.order'].sudo().search(web_domain)
-        for so in web_orders:
-            for line in so.order_line:
-                if product_id and line.product_id.id != int(product_id):
-                    continue
-                if category_id:
-                    cat_ids = [c.id for c in line.product_id.pos_categ_ids]
-                    if int(category_id) not in cat_ids:
+        # Also include web orders (sale.order) — only when tipo_pedido is 'ext' or no filter
+        if tipo_pedido in ('', 'ext'):
+            web_domain = [('state', '=', 'sale')]
+            if fecha_desde:
+                web_domain.append(('fecha_entrega', '>=', fecha_desde))
+            if fecha_hasta:
+                web_domain.append(('fecha_entrega', '<=', fecha_hasta))
+            web_orders = request.env['sale.order'].sudo().search(web_domain)
+            for so in web_orders:
+                for line in so.order_line:
+                    if product_id and line.product_id.id != int(product_id):
                         continue
-                orders_data.append({
-                    'pedido': so.name,
-                    'fecha': so.fecha_entrega,
-                    'tienda': 'Web',
-                    'tipo': 'Web',
-                    'cliente': so.partner_id.name,
-                    'producto': line.product_id.display_name,
-                    'categoria': ', '.join([c.name for c in line.product_id.pos_categ_ids][:3]),
-                    'cantidad': line.product_uom_qty,
-                    'nota': '',
-                    'nota_general': so.note or '',
-                })
+                    if category_id:
+                        cat_ids = [c.id for c in line.product_id.pos_categ_ids]
+                        if int(category_id) not in cat_ids:
+                            continue
+                    orders_data.append({
+                        'pedido': so.name,
+                        'fecha': so.fecha_entrega,
+                        'tienda': 'Web',
+                        'tipo': 'Web',
+                        'cliente': so.partner_id.name,
+                        'producto': line.product_id.display_name,
+                        'categoria': ', '.join([c.name for c in line.product_id.pos_categ_ids][:3]),
+                        'cantidad': line.product_uom_qty,
+                        'nota': '',
+                        'nota_general': so.note or '',
+                    })
 
         return request.render('tpv_pedidos.web_informes_page', {
             'orders': orders_data,

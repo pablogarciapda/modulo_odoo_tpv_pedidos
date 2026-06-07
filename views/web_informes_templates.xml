@@ -3,6 +3,23 @@
     <template id="web_informes_page" name="Informes de Pedidos">
         <t t-call="web.html_container">
             <t t-set="title" t-value="'Informes de Pedidos - Obrador'"/>
+            <!-- Inline styles for when Bootstrap CSS isn't loaded -->
+            <style>
+                .btn { display: inline-block; padding: 8px 16px; font-size: 14px; border-radius: 4px; text-decoration: none; cursor: pointer; border: 1px solid transparent; }
+                .btn-primary { background-color: #0d6efd; color: #fff; border-color: #0d6efd; }
+                .btn-success { background-color: #198754; color: #fff; border-color: #198754; }
+                .btn-primary:hover, .btn-success:hover { opacity: 0.9; }
+                .form-control { display: block; width: 100%; padding: 6px 12px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; }
+                .form-label { font-weight: 600; margin-bottom: 4px; display: block; }
+                .table { width: 100%; border-collapse: collapse; }
+                .table th, .table td { padding: 8px; border: 1px solid #dee2e6; text-align: left; }
+                .table-dark th { background-color: #212529; color: #fff; }
+                .table-striped tbody tr:nth-child(odd) { background-color: #f8f9fa; }
+                .badge { display: inline-block; padding: 4px 8px; font-size: 12px; border-radius: 4px; color: #fff; }
+                .bg-warning { background-color: #ffc107; color: #000; }
+                .bg-primary { background-color: #0d6efd; }
+                .bg-info { background-color: #0dcaf0; }
+            </style>
             <div class="o_content">
                 <div class="container-fluid py-3">
                     <h2 class="mb-4">Informes de Pedidos del Obrador</h2>
@@ -37,6 +54,7 @@
                                     <option value="">Todos</option>
                                     <option value="encargo" t-att-selected="tipo_pedido == 'encargo'">Encargo</option>
                                     <option value="pedido_tienda" t-att-selected="tipo_pedido == 'pedido_tienda'">Pedido Tienda</option>
+                                    <option value="ext" t-att-selected="tipo_pedido == 'ext'">Exterior / Web</option>
                                 </select>
                             </div>
                             <div class="col-md-2 mb-2">
@@ -100,7 +118,7 @@
                                             <td t-esc="o['pedido']"/>
                                             <td t-esc="o['fecha']"/>
                                             <td t-esc="o['tienda']"/>
-                                            <td><span class="badge" t-att-class="'bg-' + ('warning' if o['tipo'] == 'Encargo' or o['tipo'] == 'encargo' else 'primary')" t-esc="o['tipo']"/></td>
+                                            <td><span class="badge" t-att-class="'bg-' + ('warning' if o['tipo'] == 'Encargo' or o['tipo'] == 'encargo' else 'info' if o['tipo'] == 'Web' else 'primary')" t-esc="o['tipo']"/></td>
                                             <td t-esc="o['cliente']"/>
                                             <td t-esc="o['producto']"/>
                                             <td t-esc="o['categoria']"/>
