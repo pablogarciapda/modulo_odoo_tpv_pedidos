@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+import csv
+import io
 import logging
 
 from datetime import datetime
@@ -8,6 +10,13 @@ from odoo import http
 from odoo.http import request
 
 _logger = logging.getLogger(__name__)
+
+def _build_category_path(product):
+    """Helper: build ' > ' joined category path from product's pos_categ_ids."""
+    if product.pos_categ_ids:
+        cat_names = [c.name for c in product.pos_categ_ids[:3]]
+        return ' > '.join(cat_names)
+    return ''
 
 
 class TpvPedidoController(http.Controller):
@@ -235,3 +244,95 @@ class TpvPedidoController(http.Controller):
         if action and action.get('url'):
             return request.redirect(action['url'])
         return request.not_found()
+
+    @http.route('/tpv_pedidos/informes/csv', type='http', auth='user', methods=['GET'])
+    def web_informes_csv(self, **kwargs):
+        """Descarga CSV con los mismos datos que la web."""
+        if not request.env.user._is_internal():
+            return request.redirect('/web')
+
+        # Reuse the same logic as web_informes to get orders_data
+        Pedido = request.env['tpv.pedido'].sudo()
+        today = datetime.now().strftime('%Y-%m-%d')
+
+        fecha_desde = kwargs.get('fecha_desde', today)
+        fecha_hasta = kwargs.get('fecha_hasta', today)
+        tienda_id = kwargs.get('tienda_id', '')
+        tipo_pedido = kwargs.get('tipo_pedido', '')
+
+        domain = [('state', '=', 'confirmed')]
+        if fecha_desde:
+            domain.append(('fecha_entrega', '>=', fecha_desde))
+        if fecha_hasta:
+            domain.append(('fecha_entrega', '<=', fecha_hasta))
+        if tienda_id:
+            domain.append(('pos_config_id', '=', int(tienda_id)))
+        if tipo_pedido and tipo_pedido != 'ext':
+            domain.append(('tipo_pedido', '=', tipo_pedido))
+        elif tipo_pedido == 'ext':
+            domain.append(('id', '=', 0))
+
+        all_pedidos = Pedido.search(domain, order='fecha_entrega, pos_config_id, name')
+
+        # Build CSV rows
+        rows = []
+        headers = ['Pedido', 'Fecha Entrega', 'Tienda', 'Tipo', 'Cliente', 'Producto', 'Categoria', 'Cantidad', 'Nota Linea', 'Nota General']
+        rows.append(headers)
+
+        for p in all_pedidos:
+            for line in p.line_ids:
+                cat_path = _build_category_path(line.product_id)
+                rows.append([
+                    p.name,
+                    str(p.fecha_entrega or ''),
+                    p.pos_config_id.name or '',
+                    dict(p._fields['tipo_pedido'].selection).get(p.tipo_pedido, ''),
+                    p.partner_id.name,
+                    line.product_id.display_name,
+                    cat_path,
+                    str(int(line.qty)),
+                    line.nota_linea or '',
+                    p.nota_general or '',
+                ])
+
+        # Include web orders if applicable
+        if tipo_pedido in ('', 'ext'):
+            web_domain = [('state', '=', 'sale')]
+            if fecha_desde:
+                web_domain.append(('fecha_entrega', '>=', fecha_desde))
+            if fecha_hasta:
+                web_domain.append(('fecha_entrega', '<=', fecha_hasta))
+            web_orders = request.env['sale.order'].sudo().search(web_domain)
+            for so in web_orders:
+                for line in so.order_line:
+                    cat_path = _build_category_path(line.product_id)
+                    rows.append([
+                        so.name,
+                        str(so.fecha_entrega or ''),
+                        'Web',
+                        'Exterior',
+                        so.partner_id.name,
+                        line.product_id.display_name,
+                        cat_path,
+                        str(int(line.product_uom_qty)),
+                        '',
+                        so.note or '',
+                    ])
+
+        # Generate CSV
+        output = io.StringIO()
+        writer = csv.writer(output, delimiter=';', quoting=csv.QUOTE_ALL)
+        for row in rows:
+            writer.writerow(row)
+
+        csv_content = output.getvalue()
+        output.close()
+
+        filename = 'informe_pedidos_%s.csv' % today
+        return request.make_response(
+            csv_content,
+            headers=[
+                ('Content-Type', 'text/csv; charset=utf-8'),
+                ('Content-Disposition', 'attachment; filename=' + filename),
+            ],
+        )

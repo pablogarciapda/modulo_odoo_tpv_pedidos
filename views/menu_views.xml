@@ -28,7 +28,7 @@
     <record id="action_open_web_informes" model="ir.actions.act_url">
         <field name="name">Informes Pedidos</field>
         <field name="url">/tpv_pedidos/informes</field>
-        <field name="target">self</field>
+        <field name="target">new</field>
     </record>
 
     <!-- Submenú Informes Web -->
