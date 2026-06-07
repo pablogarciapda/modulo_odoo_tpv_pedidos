@@ -23,6 +23,7 @@
         'views/tpv_pedido_config_views.xml',
         'views/pos_category_views.xml',
         'views/menu_views.xml',
+        'report/paperformat_obrador.xml',
         'report/report_pedido_obrador.xml',
     ],
     'assets': {

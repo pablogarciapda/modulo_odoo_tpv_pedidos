@@ -602,11 +602,10 @@ class TpvPedido(models.Model):
                             product_totals[l.product_id.id]['total'] += self._get_uom_qty(l.product_id, l.product_uom_qty)
                             product_totals[l.product_id.id]['exterior'] += self._get_uom_qty(l.product_id, l.product_uom_qty)
 
-            # Sort by total desc
+            # Sort alphabetically by product name
             sorted_products = sorted(
                 product_totals.values(),
-                key=lambda x: x['total'],
-                reverse=True,
+                key=lambda x: x['name'],
             )
             cat_data['products'] = sorted_products
             result[cat.id] = cat_data
