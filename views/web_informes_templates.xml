@@ -3,9 +3,8 @@
     <template id="web_informes_page" name="Informes de Pedidos">
         <t t-call="web.html_container">
             <t t-set="title" t-value="'Informes de Pedidos - Obrador'"/>
-            <t t-call="web.internal_layout">
-                <div class="o_content">
-                    <div class="container-fluid py-3">
+            <div class="o_content">
+                <div class="container-fluid py-3">
                         <h2 class="mb-4">Informes de Pedidos del Obrador</h2>
 
                         <!-- Filters -->
@@ -85,7 +84,7 @@
                                                         <td t-esc="prod['name']"/>
                                                         <td class="text-end" t-esc="int(prod['total'])"/>
                                                         <td class="text-end" t-esc="int(prod['exterior'])"/>
-                                                        <t t-foreach="prod['tiendas']" t-as="tienda_key" t-key="tienda_key_index">
+                                                        <t t-foreach="prod['tiendas']" t-as="tienda_key">
                                                             <td class="text-end" t-esc="int(prod['tiendas'][tienda_key])"/>
                                                         </t>
                                                     </tr>
@@ -291,6 +290,5 @@
                     </div>
                 </div>
             </t>
-        </t>
     </template>
 </odoo>
