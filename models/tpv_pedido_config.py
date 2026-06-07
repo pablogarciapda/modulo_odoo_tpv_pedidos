@@ -110,26 +110,18 @@ class TpvPedidoConfig(models.Model):
 
         today = fields.Date.today()
 
-        # Get pedidos (same logic as cron)
-        pedidos_tienda = pedido_model.search([
+        # Get ALL confirmed pedidos with pending delivery
+        all_pedidos = pedido_model.search([
             ('state', '=', 'confirmed'),
-            ('tipo_pedido', '=', 'pedido_tienda'),
-            ('fecha_entrega', '=', today),
-        ])
-        pedidos_encargo = pedido_model.search([
-            ('state', '=', 'confirmed'),
-            ('tipo_pedido', '=', 'encargo'),
-            ('fecha_entrega', '=', today + timedelta(days=1)),
+            ('fecha_entrega', '>=', today),
         ])
         web_orders = self.env['sale.order'].search([
-            ('fecha_entrega', '=', today + timedelta(days=1)),
+            ('fecha_entrega', '>=', today),
             ('state', '=', 'sale'),
         ])
 
-        all_pedidos = pedidos_tienda + pedidos_encargo
-
         if not all_pedidos and not web_orders:
-            raise UserError('No hay pedidos para generar el reporte en la fecha de hoy.')
+            raise UserError('No hay pedidos pendientes para generar el reporte.')
 
         # Generate report
         data = {

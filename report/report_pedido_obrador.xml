@@ -12,7 +12,7 @@
     </record>
 
     <template id="report_pedido_obrador">
-        <t t-call="web.external_layout">
+        <main>
             <t t-set="o" t-value="docs"/>
             <div class="page">
                 <!-- PORTADA -->
@@ -205,6 +205,6 @@
                     </div>
                 </t>
             </t>
-        </t>
+        </main>
     </template>
 </odoo>
