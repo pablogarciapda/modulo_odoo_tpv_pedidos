@@ -128,24 +128,25 @@ El reporte QWeb (`report_pedido_obrador.xml`) tiene dos secciones dentro de `t-c
 ### Estado del Desarrollo
 
 - [x] Estructura de directorios
-- [x] `__manifest__.py`
-- [x] Modelos Python (tpv_pedido, tpv_pedido_linea, tpv_nota_categoria, herencias)
+- [x] `__manifest__.py` v19.0.2.0.0
+- [x] Modelos Python (tpv_pedido, tpv_pedido_linea, tpv_nota_categoria, herencias, config, report_line)
 - [x] Security (ACL + reglas por tienda)
-- [x] Data (secuencia, cron, partner OBRADOR, categorías notas)
-- [x] Cron _cron_imprimir_resumen_obrador + métodos ESC/POS
-- [x] Controller JSON-RPC
+- [x] Data (secuencia, cron, partner OBRADOR, categorías notas, config inicial)
+- [x] Cron _cron_imprimir_resumen_obrador + métodos ESC/POS + email
+- [x] Controller JSON-RPC + HTTP (informes web)
 - [x] Vistas backend (form/tree/search + menú)
 - [x] Componentes OWL fusionados en pedido_screen.js
 - [x] LoginScreen patch (botón "Pedido a Obrador")
 - [x] Categorías jerárquicas (padre→hijo con getAllChildren)
 - [x] SCSS para PedidoScreen
-- [x] Reporte QWeb (resumen por productos + detalle por tienda)
+- [x] Reporte QWeb (5 módulos, landscape/portrait, A4)
+- [x] Web de informes con filtros + PDF + CSV
+- [x] Config singleton (tpv.pedido.config)
+- [x] Gestión de pedidos: crear, editar, cancelar
+- [x] Fecha de entrega (default tomorrow)
+- [x] Productos por docenas (UoM factor)
 - [x] Tests básicos
 - [x] Icono del módulo
-- [x] Colores de categoría cargados desde backend
-- [x] Gestión de pedidos: listar, editar, cancelar
-- [x] Touch UI optimizada (botones 48px+)
-- [ ] Informes web con filtros (pendiente)
 
 ## Rama activa
 - `feat/gestion-pedidos-informes` — gestión de pedidos + colores + UI táctil

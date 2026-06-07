@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="web_informes_page" name="Informes de Pedidos">
+        <t t-call="web.html_container">
+            <t t-set="title" t-value="'Informes de Pedidos - Obrador'"/>
+            <!-- Inline styles for when Bootstrap CSS isn't loaded -->
+            <style>
+                .btn { display: inline-block; padding: 8px 16px; font-size: 14px; border-radius: 4px; text-decoration: none; cursor: pointer; border: 1px solid transparent; }
+                .btn-primary { background-color: #0d6efd; color: #fff; border-color: #0d6efd; }
+                .btn-success { background-color: #198754; color: #fff; border-color: #198754; }
+                .btn-info { background-color: #0dcaf0; color: #fff; border-color: #0dcaf0; }
+                .btn-info:hover { opacity: 0.85; background-color: #e9ecef; color: #000; }
+                .btn-primary:hover, .btn-success:hover { opacity: 0.85; background-color: #e9ecef; color: #000; }
+                .form-control { display: block; width: 100%; padding: 6px 12px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; }
+                .form-label { font-weight: 600; margin-bottom: 4px; display: block; }
+                .table { width: 100%; border-collapse: collapse; }
+                .table th, .table td { padding: 8px; border: 1px solid #dee2e6; text-align: left; }
+                .table-dark th { background-color: #212529; color: #fff; }
+                .table-striped tbody tr:nth-child(odd) { background-color: #f8f9fa; }
+                .badge { display: inline-block; padding: 4px 8px; font-size: 12px; border-radius: 4px; color: #fff; }
+                .bg-warning { background-color: #ffc107; color: #000; }
+                .bg-primary { background-color: #0d6efd; }
+                .bg-info { background-color: #0dcaf0; }
+            </style>
+            <div class="o_content">
+                <div class="container-fluid py-3">
+                    <h2 class="mb-4">Informes de Pedidos del Obrador</h2>
+
+                    <!-- Filters -->
+                    <form method="GET" class="mb-4 p-3 bg-light rounded border">
+                        <div class="row">
+                            <div class="col-md-3 mb-2">
+                                <label class="form-label">Fecha desde</label>
+                                <input type="date" name="fecha_desde"
+                                    t-att-value="fecha_desde" class="form-control"/>
+                            </div>
+                            <div class="col-md-3 mb-2">
+                                <label class="form-label">Fecha hasta</label>
+                                <input type="date" name="fecha_hasta"
+                                    t-att-value="fecha_hasta" class="form-control"/>
+                            </div>
+                            <div class="col-md-2 mb-2">
+                                <label class="form-label">Tienda</label>
+                                <select name="tienda_id" class="form-control">
+                                    <option value="">Todas</option>
+                                    <t t-foreach="tiendas" t-as="t">
+                                        <option t-att-value="t['id']"
+                                            t-att-selected="tienda_id == str(t['id'])"
+                                            t-esc="t['name']"/>
+                                    </t>
+                                </select>
+                            </div>
+                            <div class="col-md-2 mb-2">
+                                <label class="form-label">Tipo</label>
+                                <select name="tipo_pedido" class="form-control">
+                                    <option value="">Todos</option>
+                                    <option value="encargo" t-att-selected="tipo_pedido == 'encargo'">Encargo</option>
+                                    <option value="pedido_tienda" t-att-selected="tipo_pedido == 'pedido_tienda'">Pedido Tienda</option>
+                                    <option value="ext" t-att-selected="tipo_pedido == 'ext'">Exterior / Web</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2 mb-2">
+                                <label class="form-label">Producto</label>
+                                <select name="product_id" class="form-control">
+                                    <option value="">Todos</option>
+                                    <t t-foreach="productos" t-as="p">
+                                        <option t-att-value="p['id']"
+                                            t-att-selected="product_id == str(p['id'])"
+                                            t-esc="p['display_name']"/>
+                                    </t>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-3 mb-2">
+                                <label class="form-label">Categoria</label>
+                                <select name="category_id" class="form-control">
+                                    <option value="">Todas</option>
+                                    <t t-foreach="categorias" t-as="c">
+                                        <option t-att-value="c['id']"
+                                            t-att-selected="category_id == str(c['id'])"
+                                            t-esc="c['name']"/>
+                                    </t>
+                                </select>
+                            </div>
+                            <div class="col-md-3 mb-2" style="padding-top: 24px;">
+                                <button type="submit" class="btn btn-primary w-100">Filtrar</button>
+                            </div>
+                            <div class="col-md-3 mb-2" style="padding-top: 24px;">
+                                <a t-att-href="'/tpv_pedidos/informes/pdf?fecha_desde=' + fecha_desde + '&amp;fecha_hasta=' + fecha_hasta + '&amp;tienda_id=' + tienda_id + '&amp;tipo_pedido=' + tipo_pedido"
+                                   class="btn btn-success w-100">
+                                    <i class="fa fa-download"/> Descargar PDF
+                                </a>
+                            </div>
+                            <div class="col-md-3 mb-2" style="padding-top: 24px;">
+                                <a t-att-href="'/tpv_pedidos/informes/csv?fecha_desde=' + fecha_desde + '&amp;fecha_hasta=' + fecha_hasta + '&amp;tienda_id=' + tienda_id + '&amp;tipo_pedido=' + tipo_pedido"
+                                   class="btn btn-info w-100" style="color:#fff;">
+                                    <i class="fa fa-file-excel-o"/> Descargar CSV
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+
+                    <hr/>
+
+                    <!-- Results table -->
+                    <t t-if="orders">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped table-hover">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Pedido</th>
+                                        <th>Fecha</th>
+                                        <th>Tienda</th>
+                                        <th>Tipo</th>
+                                        <th>Cliente</th>
+                                        <th>Producto</th>
+                                        <th>Categoria</th>
+                                        <th class="text-end">Cantidad</th>
+                                        <th>Nota</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="orders" t-as="o">
+                                        <tr>
+                                            <td t-esc="o['pedido']"/>
+                                            <td t-esc="o['fecha']"/>
+                                            <td t-esc="o['tienda']"/>
+                                            <td><span class="badge" t-att-class="'bg-' + ('warning' if o['tipo'] == 'Encargo' or o['tipo'] == 'encargo' else 'info' if o['tipo'] == 'Web' else 'primary')" t-esc="o['tipo']"/></td>
+                                            <td t-esc="o['cliente']"/>
+                                            <td t-esc="o['producto']"/>
+                                            <td t-esc="o['categoria']"/>
+                                            <td class="text-end" t-esc="int(o['cantidad'])"/>
+                                            <td><small t-esc="o['nota'] or o['nota_general'] or ''"/></td>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
+                        </div>
+                        <p class="text-muted">Total: <t t-esc="len(orders)"/> lineas</p>
+                    </t>
+                    <t t-else="">
+                        <div class="alert alert-info">
+                            <i class="fa fa-info-circle"/> No hay datos para los filtros seleccionados.
+                        </div>
+                    </t>
+                </div>
+            </div>
+        </t>
+    </template>
+</odoo>

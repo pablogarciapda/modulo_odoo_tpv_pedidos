@@ -1,6 +1,6 @@
 {
     'name': 'TPV Pedidos',
-    'version': '19.0.1.0.0',
+    'version': '19.0.2.0.0',
     'category': 'Sales/Point of Sale',
     'summary': 'Pedidos desde tiendas al obrador con diferenciación de encargos y pedidos de tienda',
     'author': 'Pablo García Fernández',
@@ -23,6 +23,7 @@
         'views/tpv_pedido_config_views.xml',
         'views/pos_category_views.xml',
         'views/menu_views.xml',
+        'views/web_informes_templates.xml',
         'report/report_pedido_obrador.xml',
     ],
     'assets': {
