@@ -148,24 +148,29 @@ class TpvPedidoConfig(models.Model):
 
         merger = PdfMerger()
         report_obj = self.env['ir.actions.report']
+        report_action_rec = self.env.ref('tpv_pedidos.action_report_pedido_obrador')
+        original_paperformat = report_action_rec.paperformat_id.id
 
         # Module 1: Landscape (horizontal)
+        report_action_rec.write({'paperformat_id': self.env.ref('tpv_pedidos.paperformat_obrador_horizontal').id})
         pdf1, _ = report_obj._render_qweb_pdf(
             'tpv_pedidos.action_report_pedido_obrador',
             res_ids=all_pedidos.ids,
             data={**data, 'only_module': '1'},
-            paperformat_id=self.env.ref('tpv_pedidos.paperformat_obrador_horizontal').id,
         )
         merger.append(io.BytesIO(pdf1))
 
         # Modules 2-5: Portrait (vertical)
+        report_action_rec.write({'paperformat_id': self.env.ref('tpv_pedidos.paperformat_obrador_vertical').id})
         pdf2, _ = report_obj._render_qweb_pdf(
             'tpv_pedidos.action_report_pedido_obrador',
             res_ids=all_pedidos.ids,
             data={**data, 'only_module': '2345'},
-            paperformat_id=self.env.ref('tpv_pedidos.paperformat_obrador_vertical').id,
         )
         merger.append(io.BytesIO(pdf2))
+
+        # Restore original paperformat
+        report_action_rec.write({'paperformat_id': original_paperformat})
 
         # Get merged PDF
         output = io.BytesIO()
