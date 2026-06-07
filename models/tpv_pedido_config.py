@@ -104,7 +104,13 @@ class TpvPedidoConfig(models.Model):
         }
 
     def action_print_report(self):
-        """Genera el reporte PDF de los 5 modulos inmediatamente."""
+        """Genera el reporte PDF completo (horizontal + vertical)"""
+        import io
+        try:
+            from PyPDF2 import PdfMerger
+        except ImportError:
+            from pypdf import PdfMerger as PdfMerger
+
         pedido_model = self.env['tpv.pedido']
         from datetime import datetime, timedelta
 
@@ -123,7 +129,7 @@ class TpvPedidoConfig(models.Model):
         if not all_pedidos and not web_orders:
             raise UserError('No hay pedidos pendientes para generar el reporte.')
 
-        # Generate report
+        # Generate data dict
         data = {
             'fecha': today,
             'bloque1': pedido_model._get_bloque1_data(all_pedidos, web_orders),
@@ -140,16 +146,36 @@ class TpvPedidoConfig(models.Model):
             'web_orders': web_orders,
         }
 
-        pdf_content, _ = self.env['ir.actions.report']._render_qweb_pdf(
+        merger = PdfMerger()
+        report_obj = self.env['ir.actions.report']
+
+        # Module 1: Landscape (horizontal)
+        pdf1, _ = report_obj._render_qweb_pdf(
             'tpv_pedidos.action_report_pedido_obrador',
             res_ids=all_pedidos.ids,
-            data=data,
+            data={**data, 'only_module': '1'},
+            paperformat_id=self.env.ref('tpv_pedidos.paperformat_obrador_horizontal').id,
         )
+        merger.append(io.BytesIO(pdf1))
+
+        # Modules 2-5: Portrait (vertical)
+        pdf2, _ = report_obj._render_qweb_pdf(
+            'tpv_pedidos.action_report_pedido_obrador',
+            res_ids=all_pedidos.ids,
+            data={**data, 'only_module': '2345'},
+            paperformat_id=self.env.ref('tpv_pedidos.paperformat_obrador_vertical').id,
+        )
+        merger.append(io.BytesIO(pdf2))
+
+        # Get merged PDF
+        output = io.BytesIO()
+        merger.write(output)
+        merger.close()
 
         # Create attachment and return download action
         attachment = self.env['ir.attachment'].create({
             'name': 'reporte_obrador_%s.pdf' % today,
-            'datas': base64.b64encode(pdf_content).decode(),
+            'datas': base64.b64encode(output.getvalue()).decode(),
             'mimetype': 'application/pdf',
         })
 

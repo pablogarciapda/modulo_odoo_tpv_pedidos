@@ -9,12 +9,12 @@
         <field name="print_report_name">'Resumen_Pedidos_Obrador_%s' % (object.date_pedido)</field>
         <field name="binding_model_id" ref="model_tpv_pedido"/>
         <field name="binding_type">report</field>
-        <field name="paperformat_id" ref="tpv_pedidos.paperformat_obrador_horizontal"/>
     </record>
 
     <template id="report_pedido_obrador">
         <main>
             <t t-set="o" t-value="docs"/>
+            <t t-if="data.get('only_module', '') in ('', '1')">
             <div class="page">
                 <!-- PORTADA -->
                 <div class="text-center mb-4" style="padding-top: 100px;">
@@ -70,7 +70,9 @@
                     </div>
                 </t>
             </t>
+            </t>
 
+            <t t-if="data.get('only_module', '') in ('', '2345')">
             <!-- Bloque 2: Clientes Externos -->
             <t t-if="data['bloque2']">
                 <t t-foreach="data['bloque2']" t-as="cliente">
@@ -210,6 +212,7 @@
                         </table>
                     </div>
                 </t>
+            </t>
             </t>
         </main>
     </template>
