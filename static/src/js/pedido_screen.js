@@ -562,8 +562,8 @@ class PedidoScreen extends Component {
                     _t("Pedido %s creado correctamente", result.name),
                     { type: "success" }
                 );
-                this.state.nota_general = "";
-                this.state.fecha_entrega = "";
+                 this.state.nota_general = "";
+                this.state.fecha_entrega = this.tomorrowStr;
                 this.state.lines = [];
             } else {
                 this.notification.add(
@@ -676,7 +676,7 @@ class PedidoScreen extends Component {
                 );
                 this.state.editingPedidoId = null;
                 this.state.editingPedidoName = "";
-                this.state.fecha_entrega = "";
+                this.state.fecha_entrega = this.tomorrowStr;
                 this.state.lines = [];
             }
         }).catch((error) => {
@@ -722,7 +722,7 @@ class PedidoScreen extends Component {
         this.state.editingPedidoId = null;
         this.state.editingPedidoName = "";
         this.state.nota_general = "";
-        this.state.fecha_entrega = "";
+        this.state.fecha_entrega = this.tomorrowStr;
         this.state.lines = [];
     }
 }
