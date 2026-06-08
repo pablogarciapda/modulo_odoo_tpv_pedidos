@@ -2,6 +2,9 @@
 
 ## Módulo: `tpv_pedidos` (Odoo 19)
 
+## Skills Relacionadas
+- `weasyprint-odoo-reports` (`skills/weasyprint-odoo-reports/SKILL.md`): Generación de informes PDF con WeasyPrint en Odoo. Templates HTML+CSS, A4 landscape/portrait, merge de PDFs.
+
 ### Propósito
 Pedidos desde tiendas (TPV) al obrador. Dos flujos: **ENCARGO** (prioritario, para cliente) y **PEDIDO TIENDA** (reposición diaria). Sin apertura de caja necesaria.
 
@@ -263,3 +266,11 @@ El reporte QWeb (`report_pedido_obrador.xml`) tiene dos secciones dentro de `t-c
 - **Síntoma**: `IndexError: list index out of range` en `_prepare_html`
 - **Causa**: `t-call="web.external_layout"` no generaba `<main>` cuando docs estaba vacío
 - **Fix**: Reemplazar `t-call` por `<main>` directo en el template
+
+## Version History
+
+| Version | Date | Description |
+|---------|------|-------------|
+| 19.0.3.0.0 | 2026-06-08 | WeasyPrint reports for all 5 modules. Landscape Module 1, portrait 2-5. HTML+CSS templates. |
+| 19.0.2.0.0 | 2026-06-07 | Web informes with filters, CSV, PDF download. Fecha entrega. |
+| 19.0.1.0.0 | 2026-06-03 | Initial version. POS pedidos, basic reports. |
