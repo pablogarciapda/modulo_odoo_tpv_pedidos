@@ -110,7 +110,8 @@
                                 <thead class="table-dark">
                                     <tr>
                                         <th>Pedido</th>
-                                        <th>Fecha</th>
+                                        <th>Fecha Pedido</th>
+                                        <th>Fecha Entrega</th>
                                         <th>Tienda</th>
                                         <th>Tipo</th>
                                         <th>Cliente</th>
@@ -124,7 +125,8 @@
                                     <t t-foreach="orders" t-as="o">
                                         <tr>
                                             <td t-esc="o['pedido']"/>
-                                            <td t-esc="o['fecha']"/>
+                                            <td t-esc="o['fecha_pedido']"/>
+                                        <td t-esc="o['fecha_entrega']"/>
                                             <td t-esc="o['tienda']"/>
                                             <td><span class="badge" t-att-class="'bg-' + ('warning' if o['tipo'] == 'Encargo' or o['tipo'] == 'encargo' else 'info' if o['tipo'] == 'Web' else 'primary')" t-esc="o['tipo']"/></td>
                                             <td t-esc="o['cliente']"/>

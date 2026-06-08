@@ -175,7 +175,8 @@ class TpvPedidoController(http.Controller):
                         continue
                 orders_data.append({
                     'pedido': p.name,
-                    'fecha': p.fecha_entrega,
+                    'fecha_pedido': str(p.date_pedido or ''),
+                'fecha_entrega': str(p.fecha_entrega or ''),
                     'tienda': p.pos_config_id.name or '',
                     'tipo': dict(p._fields['tipo_pedido'].selection).get(p.tipo_pedido, ''),
                     'cliente': p.pos_config_id.name or '',
@@ -204,7 +205,8 @@ class TpvPedidoController(http.Controller):
                             continue
                     orders_data.append({
                         'pedido': so.name,
-                        'fecha': so.fecha_entrega,
+                        'fecha_pedido': str(so.date_order.date() if so.date_order else ''),
+                        'fecha_entrega': str(so.fecha_entrega or ''),
                         'tienda': 'Web',
                         'tipo': 'Web',
                         'cliente': so.partner_id.name,

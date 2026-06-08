@@ -100,7 +100,7 @@
                   decoration-warning="tipo_pedido == 'encargo' and state == 'confirmed'">
                 <field name="name"/>
                 <field name="date_pedido"/>
-                <field name="fecha_entrega" optional="hide"/>
+                <field name="fecha_entrega"/>
                 <field name="pos_config_id"/>
                 <field name="tipo_pedido" widget="badge"
                     decoration-warning="tipo_pedido == 'encargo'"
