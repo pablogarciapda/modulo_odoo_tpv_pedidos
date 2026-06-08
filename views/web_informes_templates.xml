@@ -160,7 +160,7 @@
             </style>
             <div class="o_content">
                 <div class="container-fluid py-3">
-                    <a href="/tpv_pedidos/informes" class="btn btn-secondary mb-3">&larr; Volver a informes</a>
+                    <a href="/tpv_pedidos/informes" class="btn btn-secondary mb-3">&#8592; Volver a informes</a>
                     <h2>Detalle del Pedido</h2>
                     <div class="p-3 bg-light rounded border mb-3">
                         <table class="detail-table">
