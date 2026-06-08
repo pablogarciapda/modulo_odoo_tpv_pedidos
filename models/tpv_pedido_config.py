@@ -123,15 +123,26 @@ class TpvPedidoConfig(models.Model):
         if not all_pedidos and not web_orders:
             raise UserError('No hay pedidos pendientes para generar el reporte.')
 
-        # Generate report
+        # Module 1: Generate with WeasyPrint (landscape, clean design)
+        import io
+        try:
+            from PyPDF2 import PdfMerger
+        except ImportError:
+            from pypdf import PdfMerger as PdfMerger
+        
+        merger = PdfMerger()
+        
+        pdf1 = pedido_model._generate_modulo1_pdf(all_pedidos, web_orders, today)
+        if pdf1:
+            merger.append(io.BytesIO(pdf1))
+        
+        # Modules 2-5: Generate with QWeb (portrait)
         data = {
             'fecha': today,
-            'bloque1': pedido_model._get_bloque1_data(all_pedidos, web_orders),
-            'bloque2': pedido_model._get_bloque2_data(web_orders),
-            'bloque3': pedido_model._get_bloque3_data(all_pedidos),
-            'bloque4': pedido_model._get_bloque4_data(all_pedidos),
-            'bloque5': pedido_model._get_bloque5_data(all_pedidos, web_orders),
-            'module1_title': self.module1_title,
+            'bloque2': pedido_model._get_bloque2_data(web_orders) if self.module2_active else {},
+            'bloque3': pedido_model._get_bloque3_data(all_pedidos) if self.module3_active else {},
+            'bloque4': pedido_model._get_bloque4_data(all_pedidos) if self.module4_active else {},
+            'bloque5': pedido_model._get_bloque5_data(all_pedidos, web_orders) if self.module5_active else {},
             'module2_title': self.module2_title,
             'module3_title': self.module3_title,
             'module4_title': self.module4_title,
@@ -139,12 +150,20 @@ class TpvPedidoConfig(models.Model):
             'docs': all_pedidos,
             'web_orders': web_orders,
         }
-
-        pdf_content, _ = self.env['ir.actions.report']._render_qweb_pdf(
+        
+        pdf2, _ = self.env['ir.actions.report']._render_qweb_pdf(
             'tpv_pedidos.action_report_pedido_obrador',
             res_ids=all_pedidos.ids,
             data=data,
         )
+        if pdf2:
+            merger.append(io.BytesIO(pdf2))
+        
+        # Get merged PDF
+        output = io.BytesIO()
+        merger.write(output)
+        merger.close()
+        pdf_content = output.getvalue()
 
         # Create attachment and return download action
         attachment = self.env['ir.attachment'].create({

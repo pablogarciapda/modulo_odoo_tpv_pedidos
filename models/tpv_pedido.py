@@ -533,6 +533,99 @@ class TpvPedido(models.Model):
         return pdf_content
 
     @api.model
+    def _generate_modulo1_pdf(self, pedidos, web_orders, fecha):
+        """
+        Genera el PDF del Modulo 1 (totales por categoria) usando WeasyPrint.
+        A4 landscape, una pagina por categoria con copias.
+        """
+        import weasyprint
+        import os
+
+        # Get module 1 config
+        config = self.env['tpv.pedido.config'].sudo().search([], limit=1)
+        if not config or not config.module1_active:
+            return b''
+        
+        # Get category data
+        bloque1 = self._get_bloque1_data(pedidos, web_orders)
+        if not bloque1:
+            return b''
+        
+        # Get all store names from products
+        all_stores = set()
+        for cat_id, cat_data in bloque1.items():
+            for prod in cat_data.get('products', []):
+                for store in prod.get('tiendas', {}):
+                    all_stores.add(store)
+        sorted_stores = sorted(all_stores)
+        
+        # Build HTML for each category page
+        category_pages_html = ""
+        first = True
+        for cat_id, cat_data in bloque1.items():
+            copies = cat_data.get('copies', 1)
+            for copy_num in range(copies):
+                if not first:
+                    category_pages_html += '<div class="page-break"></div>\n'
+                first = False
+                
+                # Category header
+                copy_label = ' (Copia %d de %d)' % (copy_num + 1, copies) if copies > 1 else ''
+                category_pages_html += '<div class="category-name">%s<span class="copy-label">%s</span></div>\n' % (
+                    self._escape_html(cat_data['name']), copy_label)
+                
+                # Table headers
+                category_pages_html += '<table>\n<thead>\n<tr>\n'
+                category_pages_html += '<th style="width:35%">Producto</th>\n'
+                category_pages_html += '<th class="r" style="width:8%">Total</th>\n'
+                category_pages_html += '<th class="r" style="width:8%">Ext</th>\n'
+                for store in sorted_stores:
+                    category_pages_html += '<th class="r" style="width:%d%%">%s</th>\n' % (
+                        max(5, min(10, 45 // max(len(sorted_stores), 1))), self._escape_html(store))
+                category_pages_html += '</tr>\n</thead>\n<tbody>\n'
+                
+                # Product rows
+                for prod in cat_data.get('products', []):
+                    category_pages_html += '<tr>\n'
+                    category_pages_html += '<td>%s</td>\n' % self._escape_html(prod['name'])
+                    category_pages_html += '<td class="r">%d</td>\n' % int(prod['total'])
+                    category_pages_html += '<td class="r">%d</td>\n' % int(prod['exterior'])
+                    for store in sorted_stores:
+                        qty = prod.get('tiendas', {}).get(store, 0)
+                        category_pages_html += '<td class="r">%d</td>\n' % int(qty)
+                    category_pages_html += '</tr>\n'
+                
+                category_pages_html += '</tbody>\n</table>\n'
+        
+        # Read template
+        template_path = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            'report', 'templates', 'modulo1.html'
+        )
+        with open(template_path, 'r') as f:
+            template = f.read()
+        
+        # Replace placeholders
+        html = template.replace('{FECHA}', str(fecha))
+        html = html.replace('<!--CATEGORY_PAGES-->', category_pages_html)
+        
+        # Generate PDF
+        pdf = weasyprint.HTML(string=html).write_pdf()
+        return pdf
+
+    @api.model
+    def _escape_html(self, text):
+        """Escape HTML special characters."""
+        if not text:
+            return ''
+        text = str(text)
+        text = text.replace('&', '&amp;')
+        text = text.replace('<', '&lt;')
+        text = text.replace('>', '&gt;')
+        text = text.replace('"', '&quot;')
+        return text
+
+    @api.model
     def _get_bloque1_data(self, pedidos, web_orders):
         """
         Bloque 1: Totales por familia principal.
