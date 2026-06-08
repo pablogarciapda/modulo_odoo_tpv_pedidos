@@ -503,34 +503,53 @@ class TpvPedido(models.Model):
     def _generar_reporte_4_bloques(self, pedidos, web_orders, fecha):
         """
         Genera el PDF con los 4 modulos del reporte.
-        Construye el diccionario de datos y lo pasa a _render_qweb_pdf.
-        Incluye titulos configurables de cada modulo.
+        Modulo 1 usa WeasyPrint (A4 landscape, HTML+CSS).
+        Modulos 2-5 usan QWeb (A4 portrait).
         Returns PDF bytes.
         """
+        import io
+        try:
+            from PyPDF2 import PdfMerger
+        except ImportError:
+            from pypdf import PdfMerger as PdfMerger
+        
         config = self.env['tpv.pedido.config'].search([], limit=1)
-
+        merger = PdfMerger()
+        
+        # Module 1: WeasyPrint
+        if config and config.module1_active:
+            pdf1 = self._generate_modulo1_pdf(pedidos, web_orders, fecha)
+            if pdf1:
+                merger.append(io.BytesIO(pdf1))
+        
+        # Modules 2-5: QWeb
         data = {
             'fecha': fecha,
-            'bloque1': self._get_bloque1_data(pedidos, web_orders) if config and config.module1_active else {},
-            'bloque2': self._get_bloque2_data(web_orders) if config and config.module2_active else {},
-            'bloque3': self._get_bloque3_data(pedidos) if config and config.module3_active else {},
-            'bloque4': self._get_bloque4_data(pedidos) if config and config.module4_active else {},
-            'bloque5': self._get_bloque5_data(pedidos, web_orders) if config and config.module5_active else {},
-            'module1_title': config.module1_title if config else 'Totales por Familia Principal',
             'module2_title': config.module2_title if config else 'Encargos de Tiendas',
             'module3_title': config.module3_title if config else 'Pedidos de Clientes',
             'module4_title': config.module4_title if config else 'Encargos Especificos',
             'module5_title': config.module5_title if config else 'Pedidos Personalizados',
+            'docs': pedidos,
+            'web_orders': web_orders,
         }
-        data['docs'] = pedidos
-        data['web_orders'] = web_orders
-
+        if config:
+            data['bloque2'] = self._get_bloque2_data(web_orders) if config.module2_active else {}
+            data['bloque3'] = self._get_bloque3_data(pedidos) if config.module3_active else {}
+            data['bloque4'] = self._get_bloque4_data(pedidos) if config.module4_active else {}
+            data['bloque5'] = self._get_bloque5_data(pedidos, web_orders) if config.module5_active else {}
+        
         pdf_content, _ = self.env['ir.actions.report']._render_qweb_pdf(
             'tpv_pedidos.action_report_pedido_obrador',
             res_ids=pedidos.ids,
             data=data,
         )
-        return pdf_content
+        if pdf_content:
+            merger.append(io.BytesIO(pdf_content))
+        
+        output = io.BytesIO()
+        merger.write(output)
+        merger.close()
+        return output.getvalue()
 
     @api.model
     def _generate_modulo1_pdf(self, pedidos, web_orders, fecha):

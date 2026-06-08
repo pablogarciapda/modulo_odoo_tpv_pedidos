@@ -244,6 +244,9 @@
                                     </div>
                                     <div class="small text-muted">
                                         <t t-esc="p.line_ids.length"/> líneas
+                                        <t t-if="p.fecha_entrega">
+                                            — Entrega: <t t-esc="p.fecha_entrega"/>
+                                        </t>
                                         <t t-if="p.nota_general">
                                             — <span t-esc="p.nota_general"/>
                                         </t>
