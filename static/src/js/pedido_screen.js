@@ -158,6 +158,7 @@ class PedidoScreen extends Component {
         tomorrow.setDate(tomorrow.getDate() + 1);
         const tomorrowStr = tomorrow.toISOString().split('T')[0];
         this._defaultFechaEntrega = tomorrowStr;
+        this.tomorrowStr = tomorrowStr;
 
         this.state = useState({
             selectedCategoryId: null,
@@ -571,10 +572,13 @@ class PedidoScreen extends Component {
                 );
             }
         }).catch((error) => {
-            this.notification.add(
-                _t("Error: %s", error.message || error.data?.message || JSON.stringify(error)),
-                { type: "danger" }
-            );
+            var msg = error;
+            try {
+                if (error.data && error.data.message) msg = error.data.message;
+                else if (error.message) msg = error.message;
+                else msg = JSON.stringify(error);
+            } catch(e) {}
+            this.notification.add(msg, { type: "danger" });
         });
     }
 
@@ -676,10 +680,13 @@ class PedidoScreen extends Component {
                 this.state.lines = [];
             }
         }).catch((error) => {
-            this.notification.add(
-                "Error: " + (error.message || error.data?.message || error),
-                { type: "danger" }
-            );
+            var msg = error;
+            try {
+                if (error.data && error.data.message) msg = error.data.message;
+                else if (error.message) msg = error.message;
+                else msg = JSON.stringify(error);
+            } catch(e) {}
+            this.notification.add(msg, { type: "danger" });
         });
     }
 
@@ -700,10 +707,13 @@ class PedidoScreen extends Component {
                 this.state.lines = [];
             }
         }).catch((error) => {
-            this.notification.add(
-                "Error: " + (error.message || error.data?.message || error),
-                { type: "danger" }
-            );
+            var msg = error;
+            try {
+                if (error.data && error.data.message) msg = error.data.message;
+                else if (error.message) msg = error.message;
+                else msg = JSON.stringify(error);
+            } catch(e) {}
+            this.notification.add(msg, { type: "danger" });
         });
     }
 

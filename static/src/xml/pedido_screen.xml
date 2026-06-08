@@ -88,6 +88,7 @@
                             <div class="mb-2">
                                 <label class="form-label fw-bold small">Fecha de entrega</label>
                                 <input type="date" class="form-control"
+                                    t-att-min="tomorrowStr"
                                     t-model="state.fecha_entrega"/>
                             </div>
                             <div class="mb-2">
@@ -117,6 +118,7 @@
                                 <div class="mb-2">
                                     <label class="form-label fw-bold small">Fecha de entrega</label>
                                     <input type="date" class="form-control"
+                                        t-att-min="tomorrowStr"
                                         t-model="state.fecha_entrega"/>
                                 </div>
                                 <div class="mb-2">
