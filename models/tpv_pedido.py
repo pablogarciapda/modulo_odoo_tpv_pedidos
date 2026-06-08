@@ -502,9 +502,9 @@ class TpvPedido(models.Model):
     @api.model
     def _generar_reporte_4_bloques(self, pedidos, web_orders, fecha):
         """
-        Genera el PDF con los 4 modulos del reporte.
-        Modulo 1 usa WeasyPrint (A4 landscape, HTML+CSS).
-        Modulos 2-5 usan QWeb (A4 portrait).
+        Genera el PDF con los 5 modulos del reporte.
+        Todos los modulos usan WeasyPrint (HTML+CSS).
+        Modulo 1: A4 landscape. Modulos 2-5: A4 portrait.
         Returns PDF bytes.
         """
         import io
@@ -522,34 +522,50 @@ class TpvPedido(models.Model):
             if pdf1:
                 merger.append(io.BytesIO(pdf1))
         
-        # Modules 2-5: QWeb
-        data = {
-            'fecha': fecha,
-            'module2_title': config.module2_title if config else 'Encargos de Tiendas',
-            'module3_title': config.module3_title if config else 'Pedidos de Clientes',
-            'module4_title': config.module4_title if config else 'Encargos Especificos',
-            'module5_title': config.module5_title if config else 'Pedidos Personalizados',
-            'docs': pedidos,
-            'web_orders': web_orders,
-        }
-        if config:
-            data['bloque2'] = self._get_bloque2_data(web_orders) if config.module2_active else {}
-            data['bloque3'] = self._get_bloque3_data(pedidos) if config.module3_active else {}
-            data['bloque4'] = self._get_bloque4_data(pedidos) if config.module4_active else {}
-            data['bloque5'] = self._get_bloque5_data(pedidos, web_orders) if config.module5_active else {}
-        
-        pdf_content, _ = self.env['ir.actions.report']._render_qweb_pdf(
-            'tpv_pedidos.action_report_pedido_obrador',
-            res_ids=pedidos.ids,
-            data=data,
-        )
-        if pdf_content:
-            merger.append(io.BytesIO(pdf_content))
+        # Modules 2-5: WeasyPrint (A4 portrait, modular_generico template)
+        if config and config.module2_active:
+            pdf2 = self._generate_modulo2_pdf(pedidos, fecha, config.module2_title)
+            if pdf2:
+                merger.append(io.BytesIO(pdf2))
+
+        if config and config.module3_active:
+            pdf3 = self._generate_modulo3_pdf(web_orders, fecha, config.module3_title)
+            if pdf3:
+                merger.append(io.BytesIO(pdf3))
+
+        if config and config.module4_active:
+            pdf4 = self._generate_modulo4_pdf(pedidos, fecha, config.module4_title)
+            if pdf4:
+                merger.append(io.BytesIO(pdf4))
+
+        if config and config.module5_active:
+            pdf5 = self._generate_modulo5_pdf(pedidos, web_orders, fecha, config.module5_title)
+            if pdf5:
+                merger.append(io.BytesIO(pdf5))
         
         output = io.BytesIO()
         merger.write(output)
         merger.close()
         return output.getvalue()
+
+    @api.model
+    def _render_weasy_template(self, template_name, title, fecha, content_html):
+        """Render a module PDF using WeasyPrint with the given template."""
+        import weasyprint
+        import os
+
+        template_path = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            'report', 'templates', template_name
+        )
+        with open(template_path, 'r') as f:
+            template = f.read()
+
+        html = template.replace('{TITLE}', title)
+        html = html.replace('{FECHA}', str(fecha))
+        html = html.replace('{MODULE_CONTENT}', content_html)
+
+        return weasyprint.HTML(string=html).write_pdf()
 
     @api.model
     def _generate_modulo1_pdf(self, pedidos, web_orders, fecha):
@@ -631,6 +647,147 @@ class TpvPedido(models.Model):
         # Generate PDF
         pdf = weasyprint.HTML(string=html).write_pdf()
         return pdf
+
+    @api.model
+    def _generate_modulo2_pdf(self, pedidos, fecha, title):
+        """Module 2: Store encargos (bloque3 data)."""
+        config = self.env['tpv.pedido.config'].sudo().search([], limit=1)
+        if not config or not config.module2_active:
+            return b''
+
+        bloque3 = self._get_bloque3_data(pedidos)
+        if not bloque3:
+            return b''
+
+        content = ""
+        first = True
+        for tienda_name in sorted(bloque3.keys()):
+            encargos = bloque3[tienda_name]
+            if not encargos:
+                continue
+            if not first:
+                content += '<div class="page-break"></div>\n'
+            first = False
+            content += '<div class="section-title">%s</div>\n' % self._escape_html(tienda_name)
+
+            for enc in encargos:
+                content += '<div class="item-box">\n'
+                content += '<div class="item-name">%s</div>\n' % self._escape_html(enc['name'])
+                if enc.get('nota'):
+                    content += '<div class="item-sub">%s</div>\n' % self._escape_html(enc['nota'])
+                for l in enc.get('lines', []):
+                    nota = (' <span class="item-sub">[%s]</span>' % self._escape_html(l['nota'])) if l.get('nota') else ''
+                    content += '<div class="item-line">%s <span class="qty">%d uds</span>%s</div>\n' % (
+                        self._escape_html(l['name']), int(l['qty']), nota)
+                content += '</div>\n'
+
+        if not content:
+            return b''
+        return self._render_weasy_template('modulo_generico.html', title, fecha, content)
+
+    @api.model
+    def _generate_modulo3_pdf(self, web_orders, fecha, title):
+        """Module 3: External clients (bloque2 data)."""
+        config = self.env['tpv.pedido.config'].sudo().search([], limit=1)
+        if not config or not config.module3_active:
+            return b''
+
+        bloque2 = self._get_bloque2_data(web_orders)
+        if not bloque2:
+            return b''
+
+        content = ""
+        first = True
+        for cliente in bloque2:
+            if not first:
+                content += '<div class="page-break"></div>\n'
+            first = False
+            content += '<div class="item-box">\n'
+            content += '<div class="item-name">%s</div>\n' % self._escape_html(cliente['name'])
+            if cliente.get('phone'):
+                content += '<div class="item-sub">Tel: %s</div>\n' % self._escape_html(cliente['phone'])
+            if cliente.get('address'):
+                content += '<div class="item-sub">Dir: %s</div>\n' % self._escape_html(cliente['address'])
+            content += '<div class="item-sub">Entrega: %s</div>\n' % self._escape_html(cliente.get('delivery', ''))
+            content += '<div class="item-sub">Total: %.2f €</div>\n' % cliente.get('total_amount', 0)
+            for prod in cliente.get('products', []):
+                content += '<div class="item-line">%s <span class="qty">%d uds</span></div>\n' % (
+                    self._escape_html(prod['name']), int(prod['qty']))
+            content += '</div>\n'
+
+        if not content:
+            return b''
+        return self._render_weasy_template('modulo_generico.html', title, fecha, content)
+
+    @api.model
+    def _generate_modulo4_pdf(self, pedidos, fecha, title):
+        """Module 4: Pastry encargos (bloque4 data)."""
+        config = self.env['tpv.pedido.config'].sudo().search([], limit=1)
+        if not config or not config.module4_active:
+            return b''
+
+        bloque4 = self._get_bloque4_data(pedidos)
+        if not bloque4:
+            return b''
+
+        content = ""
+        first = True
+        for tienda_name in sorted(bloque4.keys()):
+            encargos = bloque4[tienda_name]
+            if not encargos:
+                continue
+            if not first:
+                content += '<div class="page-break"></div>\n'
+            first = False
+            content += '<div class="section-title">%s</div>\n' % self._escape_html(tienda_name)
+
+            for enc in encargos:
+                content += '<div class="item-box">\n'
+                content += '<div class="item-name">%s</div>\n' % self._escape_html(enc['name'])
+                if enc.get('nota'):
+                    content += '<div class="item-sub">%s</div>\n' % self._escape_html(enc['nota'])
+                for l in enc.get('lines', []):
+                    nota = (' <span class="item-sub">[%s]</span>' % self._escape_html(l['nota'])) if l.get('nota') else ''
+                    content += '<div class="item-line">%s <span class="qty">%d uds</span>%s</div>\n' % (
+                        self._escape_html(l['name']), int(l['qty']), nota)
+                content += '</div>\n'
+
+        if not content:
+            return b''
+        return self._render_weasy_template('modulo_generico.html', title, fecha, content)
+
+    @api.model
+    def _generate_modulo5_pdf(self, pedidos, web_orders, fecha, title):
+        """Module 5: Custom orders with origin filter (bloque5 data)."""
+        config = self.env['tpv.pedido.config'].sudo().search([], limit=1)
+        if not config or not config.module5_active:
+            return b''
+
+        bloque5 = self._get_bloque5_data(pedidos, web_orders)
+        if not bloque5:
+            return b''
+
+        content = ""
+        first = True
+        for item in bloque5:
+            if not first:
+                content += '<div class="page-break"></div>\n'
+            first = False
+            content += '<div class="item-box">\n'
+            content += '<div class="item-name">%s</div>\n' % self._escape_html(item['name'])
+            content += '<div class="item-sub">Origen: %s</div>\n' % self._escape_html(item.get('origen', ''))
+            if item.get('tienda'):
+                content += '<div class="item-sub">Tienda: %s</div>\n' % self._escape_html(item['tienda'])
+            if item.get('nota'):
+                content += '<div class="item-sub">%s</div>\n' % self._escape_html(item['nota'])
+            for l in item.get('lines', []):
+                content += '<div class="item-line">%s <span class="qty">%d uds</span></div>\n' % (
+                    self._escape_html(l['name']), int(l['qty']))
+            content += '</div>\n'
+
+        if not content:
+            return b''
+        return self._render_weasy_template('modulo_generico.html', title, fecha, content)
 
     @api.model
     def _escape_html(self, text):

@@ -136,28 +136,26 @@ class TpvPedidoConfig(models.Model):
         if pdf1:
             merger.append(io.BytesIO(pdf1))
         
-        # Modules 2-5: Generate with QWeb (portrait)
-        data = {
-            'fecha': today,
-            'bloque2': pedido_model._get_bloque2_data(web_orders) if self.module2_active else {},
-            'bloque3': pedido_model._get_bloque3_data(all_pedidos) if self.module3_active else {},
-            'bloque4': pedido_model._get_bloque4_data(all_pedidos) if self.module4_active else {},
-            'bloque5': pedido_model._get_bloque5_data(all_pedidos, web_orders) if self.module5_active else {},
-            'module2_title': self.module2_title,
-            'module3_title': self.module3_title,
-            'module4_title': self.module4_title,
-            'module5_title': self.module5_title,
-            'docs': all_pedidos,
-            'web_orders': web_orders,
-        }
-        
-        pdf2, _ = self.env['ir.actions.report']._render_qweb_pdf(
-            'tpv_pedidos.action_report_pedido_obrador',
-            res_ids=all_pedidos.ids,
-            data=data,
-        )
-        if pdf2:
-            merger.append(io.BytesIO(pdf2))
+        # Modules 2-5: WeasyPrint (A4 portrait, modulo_generico template)
+        if self.module2_active:
+            pdf2 = pedido_model._generate_modulo2_pdf(all_pedidos, today, self.module2_title)
+            if pdf2:
+                merger.append(io.BytesIO(pdf2))
+
+        if self.module3_active:
+            pdf3 = pedido_model._generate_modulo3_pdf(web_orders, today, self.module3_title)
+            if pdf3:
+                merger.append(io.BytesIO(pdf3))
+
+        if self.module4_active:
+            pdf4 = pedido_model._generate_modulo4_pdf(all_pedidos, today, self.module4_title)
+            if pdf4:
+                merger.append(io.BytesIO(pdf4))
+
+        if self.module5_active:
+            pdf5 = pedido_model._generate_modulo5_pdf(all_pedidos, web_orders, today, self.module5_title)
+            if pdf5:
+                merger.append(io.BytesIO(pdf5))
         
         # Get merged PDF
         output = io.BytesIO()
