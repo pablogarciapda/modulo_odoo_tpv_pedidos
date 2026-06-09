@@ -24,46 +24,6 @@
         action="tpv_nota_categoria_action"
         sequence="20"/>
 
-    <!-- Acción URL para Informes Web (debe ir ANTES del menuitem) -->
-    <record id="action_open_web_informes" model="ir.actions.act_url">
-        <field name="name">Informes Pedidos</field>
-        <field name="url">/tpv_pedidos/informes</field>
-        <field name="target">new</field>
-    </record>
-
-    <!-- Submenú Informes Web -->
-    <menuitem id="menu_tpv_pedidos_informes"
-        name="Informes Pedidos"
-        parent="menu_tpv_pedidos_root"
-        action="action_open_web_informes"
-        sequence="22"/>
-
-    <!-- Action: Pedidos Web (sale.order con tipo_pedido_tag) -->
-    <record id="action_tpv_web_orders" model="ir.actions.act_window">
-        <field name="name">Pedidos Web</field>
-        <field name="res_model">sale.order</field>
-        <field name="view_mode">tree,form</field>
-        <field name="domain">[('tipo_pedido_tag', '!=', False)]</field>
-        <field name="context">{'search_default_tipo_pedido': 1}</field>
-        <field name="help" type="html">
-            <p>Pedidos realizados por clientes web, VIP y externos.</p>
-        </field>
-    </record>
-
-    <!-- Submenú Pedidos Web -->
-    <record id="action_tpv_web_orders" model="ir.actions.act_window">
-        <field name="name">Pedidos Web</field>
-        <field name="res_model">sale.order</field>
-        <field name="view_mode">list,form</field>
-        <field name="domain">[('tipo_pedido_tag', '!=', False)]</field>
-    </record>
-
-    <menuitem id="menu_tpv_pedidos_web"
-        name="Pedidos Web"
-        parent="menu_tpv_pedidos_root"
-        action="action_tpv_web_orders"
-        sequence="15"/>
-
     <!-- Submenú Configuración Obrador (usa server action para singleton) -->
     <menuitem id="menu_tpv_pedidos_config"
         name="Configuración Obrador"
