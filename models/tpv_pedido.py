@@ -660,14 +660,10 @@ class TpvPedido(models.Model):
             return b''
 
         content = ""
-        first = True
         for tienda_name in sorted(bloque3.keys()):
             encargos = bloque3[tienda_name]
             if not encargos:
                 continue
-            if not first:
-                content += '<div class="page-break"></div>\n'
-            first = False
             content += '<div class="section-title">%s</div>\n' % self._escape_html(tienda_name)
 
             for enc in encargos:
@@ -675,10 +671,11 @@ class TpvPedido(models.Model):
                 content += '<div class="item-name">%s</div>\n' % self._escape_html(enc['name'])
                 if enc.get('nota'):
                     content += '<div class="item-sub">%s</div>\n' % self._escape_html(enc['nota'])
-                for l in enc.get('lines', []):
+                for i, l in enumerate(enc.get('lines', [])):
+                    row_class = 'item-line-alt' if i % 2 == 0 else 'item-line-alt even'
                     nota = (' <span class="item-sub">[%s]</span>' % self._escape_html(l['nota'])) if l.get('nota') else ''
-                    content += '<div class="item-line">%s <span class="qty">%d uds</span>%s</div>\n' % (
-                        self._escape_html(l['name']), int(l['qty']), nota)
+                    content += '<div class="%s">%s <span class="qty">%d uds</span>%s</div>\n' % (
+                        row_class, self._escape_html(l['name']), int(l['qty']), nota)
                 content += '</div>\n'
 
         if not content:
@@ -697,11 +694,7 @@ class TpvPedido(models.Model):
             return b''
 
         content = ""
-        first = True
         for cliente in bloque2:
-            if not first:
-                content += '<div class="page-break"></div>\n'
-            first = False
             content += '<div class="item-box">\n'
             content += '<div class="item-name">%s</div>\n' % self._escape_html(cliente['name'])
             if cliente.get('phone'):
@@ -710,9 +703,10 @@ class TpvPedido(models.Model):
                 content += '<div class="item-sub">Dir: %s</div>\n' % self._escape_html(cliente['address'])
             content += '<div class="item-sub">Entrega: %s</div>\n' % self._escape_html(cliente.get('delivery', ''))
             content += '<div class="item-sub">Total: %.2f €</div>\n' % cliente.get('total_amount', 0)
-            for prod in cliente.get('products', []):
-                content += '<div class="item-line">%s <span class="qty">%d uds</span></div>\n' % (
-                    self._escape_html(prod['name']), int(prod['qty']))
+            for i, prod in enumerate(cliente.get('products', [])):
+                row_class = 'item-line-alt' if i % 2 == 0 else 'item-line-alt even'
+                content += '<div class="%s">%s <span class="qty">%d uds</span></div>\n' % (
+                    row_class, self._escape_html(prod['name']), int(prod['qty']))
             content += '</div>\n'
 
         if not content:
@@ -731,14 +725,10 @@ class TpvPedido(models.Model):
             return b''
 
         content = ""
-        first = True
         for tienda_name in sorted(bloque4.keys()):
             encargos = bloque4[tienda_name]
             if not encargos:
                 continue
-            if not first:
-                content += '<div class="page-break"></div>\n'
-            first = False
             content += '<div class="section-title">%s</div>\n' % self._escape_html(tienda_name)
 
             for enc in encargos:
@@ -746,10 +736,11 @@ class TpvPedido(models.Model):
                 content += '<div class="item-name">%s</div>\n' % self._escape_html(enc['name'])
                 if enc.get('nota'):
                     content += '<div class="item-sub">%s</div>\n' % self._escape_html(enc['nota'])
-                for l in enc.get('lines', []):
+                for i, l in enumerate(enc.get('lines', [])):
+                    row_class = 'item-line-alt' if i % 2 == 0 else 'item-line-alt even'
                     nota = (' <span class="item-sub">[%s]</span>' % self._escape_html(l['nota'])) if l.get('nota') else ''
-                    content += '<div class="item-line">%s <span class="qty">%d uds</span>%s</div>\n' % (
-                        self._escape_html(l['name']), int(l['qty']), nota)
+                    content += '<div class="%s">%s <span class="qty">%d uds</span>%s</div>\n' % (
+                        row_class, self._escape_html(l['name']), int(l['qty']), nota)
                 content += '</div>\n'
 
         if not content:
