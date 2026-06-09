@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 
-from odoo import fields, models
+from datetime import timedelta
+
+from odoo import api, fields, models
 
 
 class SaleOrderInherit(models.Model):
@@ -24,5 +26,15 @@ class SaleOrderInherit(models.Model):
     )
     fecha_entrega = fields.Date(
         string='Fecha de entrega',
-        help='Fecha en que el cliente necesita recibir el pedido.',
+        compute='_compute_fecha_entrega',
+        store=True,
+        readonly=False,
+        help='Fecha en que el cliente necesita recibir el pedido. '
+             'Por defecto: fecha de pedido + 1 dia.',
     )
+
+    @api.depends('date_order')
+    def _compute_fecha_entrega(self):
+        for rec in self:
+            if not rec.fecha_entrega and rec.date_order:
+                rec.fecha_entrega = rec.date_order.date() + timedelta(days=1)
