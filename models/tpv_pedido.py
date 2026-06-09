@@ -283,6 +283,7 @@ class TpvPedido(models.Model):
     def get_pedidos_today_for_pos(self, pos_config_id):
         """
         Devuelve los pedidos del día para una tienda específica.
+        Usa sudo() para evitar problemas de permisos del cajero.
         """
         from datetime import date
         domain = [
@@ -290,11 +291,11 @@ class TpvPedido(models.Model):
             ('pos_config_id', '=', pos_config_id),
             ('state', 'in', ['draft', 'confirmed']),
         ]
-        pedidos = self.search(domain, order='id desc')
+        pedidos = self.sudo().search(domain, order='id desc')
         result = []
         for p in pedidos:
             lines_data = []
-            for l in p.line_ids:
+            for l in p.line_ids.sudo():
                 lines_data.append({
                     'id': l.id,
                     'product_id': l.product_id.id,
