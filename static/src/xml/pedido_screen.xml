@@ -239,17 +239,14 @@
                                     <div class="fw-bold">
                                         <span t-esc="p.name"/>
                                         <span class="badge ms-2"
-                                            t-att-class="p.tipo_pedido === 'encargo' ? 'bg-warning text-dark' : 'bg-primary'"
-                                            t-esc="p.tipo_pedido === 'encargo' ? 'ENCARGO' : 'TIENDA'"/>
+                                            t-att-class="p.tipo_pedido === 'encargo' ? 'bg-warning text-dark' : (p.tipo_pedido === 'web' ? 'bg-info' : 'bg-primary')"
+                                            t-esc="p.tipo_pedido === 'encargo' ? 'ENCARGO' : (p.tipo_pedido === 'web' ? 'WEB' : 'TIENDA')"/>
                                     </div>
                                     <div class="small text-muted">
-                                        <t t-esc="p.line_ids.length"/> líneas
-                                        <t t-if="p.fecha_entrega">
-                                            — Entrega: <t t-esc="p.fecha_entrega"/>
-                                        </t>
-                                        <t t-if="p.nota_general">
-                                            — <span t-esc="p.nota_general"/>
-                                        </t>
+                                        <t t-esc="p.line_ids.length"/> lineas
+                                        <t t-if="p.fecha_entrega"> — Entrega: <t t-esc="p.fecha_entrega"/></t>
+                                        <t t-if="p.origen === 'web'"> — <span class="text-info">Web</span></t>
+                                        <t t-if="p.nota_general"> — <span t-esc="p.nota_general"/></t>
                                     </div>
                                 </div>
                                 <span class="badge"

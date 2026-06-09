@@ -283,16 +283,22 @@ class TpvPedido(models.Model):
     def get_pedidos_today_for_pos(self, pos_config_id):
         """
         Devuelve los pedidos del día para una tienda específica.
+        Incluye pedidos TPV y pedidos web (sale.order).
         Usa sudo() para evitar problemas de permisos del cajero.
         """
-        from datetime import date
+        from datetime import date, timedelta
+        today = date.today()
+        tomorrow = today + timedelta(days=1)
+
         domain = [
-            ('date_pedido', '=', date.today()),
+            ('date_pedido', '=', today),
             ('pos_config_id', '=', pos_config_id),
             ('state', 'in', ['draft', 'confirmed']),
         ]
         pedidos = self.sudo().search(domain, order='id desc')
         result = []
+
+        # Add TPV pedidos
         for p in pedidos:
             lines_data = []
             for l in p.line_ids.sudo():
@@ -313,7 +319,41 @@ class TpvPedido(models.Model):
                 'nota_general': p.nota_general or '',
                 'fecha_entrega': p.fecha_entrega,
                 'line_ids': lines_data,
+                'origen': 'tpv',  # TPV pedido
             })
+
+        # Add web orders (sale.order with delivery today or tomorrow)
+        web_orders = self.env['sale.order'].sudo().search([
+            ('fecha_entrega', 'in', [today, tomorrow]),
+            ('state', '=', 'sale'),
+        ], order='name desc')
+
+        for so in web_orders:
+            # Skip if already a tpv.pedido
+            if so.tpv_pedido_id:
+                continue
+            lines_data = []
+            for line in so.order_line.sudo():
+                lines_data.append({
+                    'id': line.id,
+                    'product_id': line.product_id.id,
+                    'product_name': line.product_id.display_name,
+                    'qty': line.product_uom_qty,
+                    'nota_linea': '',
+                    'nota_categoria_id': False,
+                    'nota_categoria_name': '',
+                })
+            result.append({
+                'id': so.id,
+                'name': so.name,
+                'tipo_pedido': 'web',
+                'state': so.state,
+                'nota_general': so.note or '',
+                'fecha_entrega': so.fecha_entrega,
+                'line_ids': lines_data,
+                'origen': 'web',
+            })
+
         return result
 
     def action_done(self):

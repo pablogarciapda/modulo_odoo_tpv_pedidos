@@ -16,6 +16,8 @@ class SaleOrderInherit(models.Model):
         [
             ('encargo', 'ENCARGO'),
             ('pedido_tienda', 'Pedido Tienda'),
+            ('vip', 'VIP'),
+            ('web', 'Web'),
         ],
         string='Tipo de Pedido',
         tracking=True,
