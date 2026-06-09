@@ -358,7 +358,8 @@ class TpvPedidoController(http.Controller):
                 'producto': line.product_id.display_name,
                 'cantidad': line.qty,
                 'nota': line.nota_linea or '',
-                'categoria': line.nota_categoria_id.name if line.nota_categoria_id else '',
+                'categoria': ', '.join([c.name for c in line.product_id.pos_categ_ids][:2]) if line.product_id.pos_categ_ids else '',
+                'nota_categoria': line.nota_categoria_id.name if line.nota_categoria_id else '',
             })
 
         return request.render('tpv_pedidos.web_informe_detalle_page', {
@@ -383,7 +384,8 @@ class TpvPedidoController(http.Controller):
                 'producto': line.product_id.display_name,
                 'cantidad': line.product_uom_qty,
                 'nota': '',
-                'categoria': '',
+                'categoria': ', '.join([c.name for c in line.product_id.pos_categ_ids][:2]) if line.product_id.pos_categ_ids else '',
+                'nota_categoria': '',
             })
 
         return request.render('tpv_pedidos.web_informe_detalle_page', {

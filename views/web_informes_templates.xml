@@ -151,12 +151,15 @@
         <t t-call="web.html_container">
             <t t-set="title" t-value="'Detalle del Pedido'"/>
             <style>
-                .btn { display: inline-block; padding: 8px 16px; font-size: 14px; border-radius: 4px; text-decoration: none; }
+                .btn { display: inline-block; padding: 10px 20px; font-size: 16px; border-radius: 4px; text-decoration: none; }
                 .btn-secondary { background: #6c757d; color: #fff; }
                 .detail-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-                .detail-table th { background: #2c2c2c; color: #fff; padding: 6px; text-align: left; font-size: 11px; }
-                .detail-table td { padding: 6px; border-bottom: 1px solid #ddd; font-size: 11px; }
-                .info-label { font-weight: bold; color: #555; }
+                .detail-table th { background: #2c2c2c; color: #fff; padding: 10px; text-align: left; font-size: 14px; }
+                .detail-table td { padding: 10px; border-bottom: 1px solid #ddd; font-size: 14px; }
+                .info-label { font-weight: bold; color: #555; font-size: 14px; }
+                body { font-size: 14px; }
+                h2 { font-size: 22px; }
+                h3 { font-size: 18px; }
             </style>
             <div class="o_content">
                 <div class="container-fluid py-3">
@@ -178,16 +181,18 @@
                     <table class="detail-table">
                         <thead><tr>
                             <th>Producto</th>
+                            <th>Categoria</th>
                             <th class="text-end">Cantidad</th>
-                            <th>Categoria Nota</th>
+                            <th>Nota Categoria</th>
                             <th>Nota</th>
                         </tr></thead>
                         <tbody>
                             <t t-foreach="lines" t-as="l">
                                 <tr>
                                     <td t-esc="l['producto']"/>
-                                    <td class="text-end" t-esc="int(l['cantidad'])"/>
                                     <td t-esc="l['categoria']"/>
+                                    <td class="text-end" t-esc="int(l['cantidad'])"/>
+                                    <td t-esc="l['nota_categoria']"/>
                                     <td t-esc="l['nota']"/>
                                 </tr>
                             </t>
