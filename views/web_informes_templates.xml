@@ -110,12 +110,10 @@
                                 <thead class="table-dark">
                                     <tr>
                                         <th>Pedido</th>
-                                        <th>Fecha</th>
-                                        <th>Tienda</th>
+                                        <th>Fecha Entrega</th>
                                         <th>Tipo</th>
                                         <th>Cliente</th>
                                         <th>Producto</th>
-                                        <th>Categoria</th>
                                         <th class="text-end">Cantidad</th>
                                         <th>Nota</th>
                                     </tr>
@@ -123,13 +121,14 @@
                                 <tbody>
                                     <t t-foreach="orders" t-as="o">
                                         <tr>
-                                            <td t-esc="o['pedido']"/>
-                                            <td t-esc="o['fecha']"/>
-                                            <td t-esc="o['tienda']"/>
-                                            <td><span class="badge" t-att-class="'bg-' + ('warning' if o['tipo'] == 'Encargo' or o['tipo'] == 'encargo' else 'info' if o['tipo'] == 'Web' else 'primary')" t-esc="o['tipo']"/></td>
+                                            <td>
+                                                <a t-att-href="o.get('es_web') and '/tpv_pedidos/informes/detalle/web/' + str(o['pedido_id']) or '/tpv_pedidos/informes/detalle/' + str(o['pedido_id'])"
+                                                   t-esc="o['pedido']"/>
+                                            </td>
+                                            <td t-esc="o['fecha_entrega']"/>
+                                            <td><span class="badge" t-att-class="'bg-' + ('warning' if o['tipo'] == 'Encargo' or o['tipo'] == 'encargo' else ('info' if o['tipo'] == 'Web' else 'primary'))" t-esc="o['tipo']"/></td>
                                             <td t-esc="o['cliente']"/>
                                             <td t-esc="o['producto']"/>
-                                            <td t-esc="o['categoria']"/>
                                             <td class="text-end" t-esc="int(o['cantidad'])"/>
                                             <td><small t-esc="o['nota'] or o['nota_general'] or ''"/></td>
                                         </tr>
@@ -144,6 +143,61 @@
                             <i class="fa fa-info-circle"/> No hay datos para los filtros seleccionados.
                         </div>
                     </t>
+                </div>
+            </div>
+        </t>
+    </template>
+    <template id="web_informe_detalle_page" name="Detalle de Pedido">
+        <t t-call="web.html_container">
+            <t t-set="title" t-value="'Detalle del Pedido'"/>
+            <style>
+                .btn { display: inline-block; padding: 10px 20px; font-size: 16px; border-radius: 4px; text-decoration: none; }
+                .btn-secondary { background: #6c757d; color: #fff; }
+                .detail-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+                .detail-table th { background: #2c2c2c; color: #fff; padding: 10px; text-align: left; font-size: 14px; }
+                .detail-table td { padding: 10px; border-bottom: 1px solid #ddd; font-size: 14px; }
+                .info-label { font-weight: bold; color: #555; font-size: 14px; }
+                body { font-size: 14px; }
+                h2 { font-size: 22px; }
+                h3 { font-size: 18px; }
+            </style>
+            <div class="o_content">
+                <div class="container-fluid py-3">
+                    <a href="/tpv_pedidos/informes" class="btn btn-secondary mb-3">&#8592; Volver a informes</a>
+                    <h2>Detalle del Pedido</h2>
+                    <div class="p-3 bg-light rounded border mb-3">
+                        <table class="detail-table">
+                            <tr><td class="info-label" style="width:150px;">Pedido</td><td t-esc="pedido.name"/></tr>
+                            <tr><td class="info-label">Origen</td><td t-esc="origen"/></tr>
+                            <tr t-if="tienda"><td class="info-label">Tienda</td><td t-esc="tienda"/></tr>
+                            <tr><td class="info-label">Cliente</td><td t-esc="cliente"/></tr>
+                            <tr><td class="info-label">Fecha Pedido</td><td t-esc="pedido.date_pedido or ''"/></tr>
+                            <tr><td class="info-label">Fecha Entrega</td><td t-esc="pedido.fecha_entrega or ''"/></tr>
+                            <tr t-if="pedido.nota_general"><td class="info-label">Nota General</td><td t-esc="pedido.nota_general"/></tr>
+                            <tr t-if="sale_order"><td class="info-label">Pedido Venta</td><td t-esc="sale_order.name"/></tr>
+                        </table>
+                    </div>
+                    <h3>Lineas del Pedido</h3>
+                    <table class="detail-table">
+                        <thead><tr>
+                            <th>Producto</th>
+                            <th>Categoria</th>
+                            <th class="text-end">Cantidad</th>
+                            <th>Nota Categoria</th>
+                            <th>Nota</th>
+                        </tr></thead>
+                        <tbody>
+                            <t t-foreach="lines" t-as="l">
+                                <tr>
+                                    <td t-esc="l['producto']"/>
+                                    <td t-esc="l['categoria']"/>
+                                    <td class="text-end" t-esc="int(l['cantidad'])"/>
+                                    <td t-esc="l['nota_categoria']"/>
+                                    <td t-esc="l['nota']"/>
+                                </tr>
+                            </t>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </t>

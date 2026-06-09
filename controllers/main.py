@@ -175,7 +175,9 @@ class TpvPedidoController(http.Controller):
                         continue
                 orders_data.append({
                     'pedido': p.name,
-                    'fecha': p.fecha_entrega,
+                    'pedido_id': p.id,
+                    'fecha_pedido': str(p.date_pedido or ''),
+                'fecha_entrega': str(p.fecha_entrega or ''),
                     'tienda': p.pos_config_id.name or '',
                     'tipo': dict(p._fields['tipo_pedido'].selection).get(p.tipo_pedido, ''),
                     'cliente': p.pos_config_id.name or '',
@@ -183,8 +185,9 @@ class TpvPedidoController(http.Controller):
                     'categoria': ', '.join([c.name for c in line.product_id.pos_categ_ids][:3]),
                     'cantidad': line.qty,
                     'nota': line.nota_linea or '',
-                    'nota_general': p.nota_general or '',
-                })
+                'nota_general': p.nota_general or '',
+                'es_web': False,
+            })
 
         # Also include web orders (sale.order) — only when tipo_pedido is 'ext' or no filter
         if tipo_pedido in ('', 'ext'):
@@ -204,7 +207,9 @@ class TpvPedidoController(http.Controller):
                             continue
                     orders_data.append({
                         'pedido': so.name,
-                        'fecha': so.fecha_entrega,
+                        'pedido_id': so.id,
+                        'fecha_pedido': str(so.date_order.date() if so.date_order else ''),
+                        'fecha_entrega': str(so.fecha_entrega or ''),
                         'tienda': 'Web',
                         'tipo': 'Web',
                         'cliente': so.partner_id.name,
@@ -213,6 +218,7 @@ class TpvPedidoController(http.Controller):
                         'cantidad': line.product_uom_qty,
                         'nota': '',
                         'nota_general': so.note or '',
+                        'es_web': True,
                     })
 
         return request.render('tpv_pedidos.web_informes_page', {
@@ -336,3 +342,57 @@ class TpvPedidoController(http.Controller):
                 ('Content-Disposition', 'attachment; filename=' + filename),
             ],
         )
+
+    @http.route('/tpv_pedidos/informes/detalle/<model("tpv.pedido"):pedido>', type='http', auth='user', methods=['GET'])
+    def web_informe_detalle(self, pedido):
+        """Pagina de detalle de un pedido."""
+        if not request.env.user._is_internal():
+            return request.redirect('/web')
+
+        pedido = pedido.sudo()
+
+        # Build detail data
+        lines = []
+        for line in pedido.line_ids:
+            lines.append({
+                'producto': line.product_id.display_name,
+                'cantidad': line.qty,
+                'nota': line.nota_linea or '',
+                'categoria': ', '.join([c.name for c in line.product_id.pos_categ_ids][:2]) if line.product_id.pos_categ_ids else '',
+                'nota_categoria': line.nota_categoria_id.name if line.nota_categoria_id else '',
+            })
+
+        return request.render('tpv_pedidos.web_informe_detalle_page', {
+            'pedido': pedido,
+            'lines': lines,
+            'origen': 'Encargo' if pedido.tipo_pedido == 'encargo' else 'Pedido Tienda',
+            'tienda': pedido.pos_config_id.name or '',
+            'cliente': pedido.pos_config_id.name or pedido.partner_id.name,
+            'sale_order': pedido.sale_order_id,
+        })
+
+    @http.route('/tpv_pedidos/informes/detalle/web/<model("sale.order"):order>', type='http', auth='user', methods=['GET'])
+    def web_informe_detalle_web(self, order):
+        """Pagina de detalle de un pedido web."""
+        if not request.env.user._is_internal():
+            return request.redirect('/web')
+
+        order = order.sudo()
+        lines = []
+        for line in order.order_line:
+            lines.append({
+                'producto': line.product_id.display_name,
+                'cantidad': line.product_uom_qty,
+                'nota': '',
+                'categoria': ', '.join([c.name for c in line.product_id.pos_categ_ids][:2]) if line.product_id.pos_categ_ids else '',
+                'nota_categoria': '',
+            })
+
+        return request.render('tpv_pedidos.web_informe_detalle_page', {
+            'pedido': order,
+            'lines': lines,
+            'origen': 'Web',
+            'tienda': 'Web',
+            'cliente': order.partner_id.name,
+            'sale_order': False,
+        })

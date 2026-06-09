@@ -283,18 +283,25 @@ class TpvPedido(models.Model):
     def get_pedidos_today_for_pos(self, pos_config_id):
         """
         Devuelve los pedidos del día para una tienda específica.
+        Incluye pedidos TPV y pedidos web (sale.order).
+        Usa sudo() para evitar problemas de permisos del cajero.
         """
-        from datetime import date
+        from datetime import date, timedelta
+        today = date.today()
+        tomorrow = today + timedelta(days=1)
+
         domain = [
-            ('date_pedido', '=', date.today()),
+            ('date_pedido', '=', today),
             ('pos_config_id', '=', pos_config_id),
             ('state', 'in', ['draft', 'confirmed']),
         ]
-        pedidos = self.search(domain, order='id desc')
+        pedidos = self.sudo().search(domain, order='id desc')
         result = []
+
+        # Add TPV pedidos
         for p in pedidos:
             lines_data = []
-            for l in p.line_ids:
+            for l in p.line_ids.sudo():
                 lines_data.append({
                     'id': l.id,
                     'product_id': l.product_id.id,
@@ -312,7 +319,41 @@ class TpvPedido(models.Model):
                 'nota_general': p.nota_general or '',
                 'fecha_entrega': p.fecha_entrega,
                 'line_ids': lines_data,
+                'origen': 'tpv',  # TPV pedido
             })
+
+        # Add web orders (sale.order without tpv_pedido_id)
+        web_orders = self.env['sale.order'].sudo().search([
+            ('state', '=', 'sale'),
+            ('tpv_pedido_id', '=', False),
+        ], order='name desc', limit=50)
+
+        for so in web_orders:
+            # Skip if already a tpv.pedido
+            if so.tpv_pedido_id:
+                continue
+            lines_data = []
+            for line in so.order_line.sudo():
+                lines_data.append({
+                    'id': line.id,
+                    'product_id': line.product_id.id,
+                    'product_name': line.product_id.display_name,
+                    'qty': line.product_uom_qty,
+                    'nota_linea': '',
+                    'nota_categoria_id': False,
+                    'nota_categoria_name': '',
+                })
+            result.append({
+                'id': so.id,
+                'name': so.name,
+                'tipo_pedido': 'web',
+                'state': so.state,
+                'nota_general': so.note or '',
+                'fecha_entrega': so.fecha_entrega,
+                'line_ids': lines_data,
+                'origen': 'web',
+            })
+
         return result
 
     def action_done(self):
@@ -464,10 +505,10 @@ class TpvPedido(models.Model):
             ('fecha_entrega', '=', today + timedelta(days=1)),
         ])
 
-        # Clientes web (sale.order con fecha_entrega = today+1 para fabricar hoy)
+        # Clientes web (todos los sale.order confirmados sin tpv_pedido asociado)
         web_orders = self.env['sale.order'].search([
-            ('fecha_entrega', '=', today + timedelta(days=1)),
             ('state', '=', 'sale'),
+            ('tpv_pedido_id', '=', False),
         ])
 
         all_pedidos = pedidos_tienda + pedidos_encargo
@@ -502,35 +543,295 @@ class TpvPedido(models.Model):
     @api.model
     def _generar_reporte_4_bloques(self, pedidos, web_orders, fecha):
         """
-        Genera el PDF con los 4 modulos del reporte.
-        Construye el diccionario de datos y lo pasa a _render_qweb_pdf.
-        Incluye titulos configurables de cada modulo.
+        Genera el PDF con los 5 modulos del reporte.
+        Todos los modulos usan WeasyPrint (HTML+CSS).
+        Modulo 1: A4 landscape. Modulos 2-5: A4 portrait.
         Returns PDF bytes.
         """
+        import io
+        try:
+            from PyPDF2 import PdfMerger
+        except ImportError:
+            from pypdf import PdfMerger as PdfMerger
+        
         config = self.env['tpv.pedido.config'].search([], limit=1)
+        merger = PdfMerger()
+        
+        # Module 1: WeasyPrint
+        if config and config.module1_active:
+            pdf1 = self._generate_modulo1_pdf(pedidos, web_orders, fecha)
+            if pdf1:
+                merger.append(io.BytesIO(pdf1))
+        
+        # Modules 2-5: WeasyPrint (A4 portrait, modular_generico template)
+        if config and config.module2_active:
+            pdf2 = self._generate_modulo2_pdf(pedidos, fecha, config.module2_title)
+            if pdf2:
+                merger.append(io.BytesIO(pdf2))
 
-        data = {
-            'fecha': fecha,
-            'bloque1': self._get_bloque1_data(pedidos, web_orders) if config and config.module1_active else {},
-            'bloque2': self._get_bloque2_data(web_orders) if config and config.module2_active else {},
-            'bloque3': self._get_bloque3_data(pedidos) if config and config.module3_active else {},
-            'bloque4': self._get_bloque4_data(pedidos) if config and config.module4_active else {},
-            'bloque5': self._get_bloque5_data(pedidos, web_orders) if config and config.module5_active else {},
-            'module1_title': config.module1_title if config else 'Totales por Familia Principal',
-            'module2_title': config.module2_title if config else 'Encargos de Tiendas',
-            'module3_title': config.module3_title if config else 'Pedidos de Clientes',
-            'module4_title': config.module4_title if config else 'Encargos Especificos',
-            'module5_title': config.module5_title if config else 'Pedidos Personalizados',
-        }
-        data['docs'] = pedidos
-        data['web_orders'] = web_orders
+        if config and config.module3_active:
+            pdf3 = self._generate_modulo3_pdf(web_orders, fecha, config.module3_title)
+            if pdf3:
+                merger.append(io.BytesIO(pdf3))
 
-        pdf_content, _ = self.env['ir.actions.report']._render_qweb_pdf(
-            'tpv_pedidos.action_report_pedido_obrador',
-            res_ids=pedidos.ids,
-            data=data,
+        if config and config.module4_active:
+            pdf4 = self._generate_modulo4_pdf(pedidos, fecha, config.module4_title)
+            if pdf4:
+                merger.append(io.BytesIO(pdf4))
+
+        if config and config.module5_active:
+            pdf5 = self._generate_modulo5_pdf(pedidos, web_orders, fecha, config.module5_title)
+            if pdf5:
+                merger.append(io.BytesIO(pdf5))
+        
+        output = io.BytesIO()
+        merger.write(output)
+        merger.close()
+        return output.getvalue()
+
+    @api.model
+    def _render_weasy_template(self, template_name, title, fecha, content_html):
+        """Render a module PDF using WeasyPrint with the given template."""
+        import weasyprint
+        import os
+
+        template_path = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            'report', 'templates', template_name
         )
-        return pdf_content
+        with open(template_path, 'r') as f:
+            template = f.read()
+
+        html = template.replace('{TITLE}', title)
+        html = html.replace('{FECHA}', str(fecha))
+        html = html.replace('{MODULE_CONTENT}', content_html)
+
+        return weasyprint.HTML(string=html).write_pdf()
+
+    @api.model
+    def _generate_modulo1_pdf(self, pedidos, web_orders, fecha):
+        """
+        Genera el PDF del Modulo 1 (totales por categoria) usando WeasyPrint.
+        A4 landscape, una pagina por categoria con copias.
+        """
+        import weasyprint
+        import os
+
+        # Get module 1 config
+        config = self.env['tpv.pedido.config'].sudo().search([], limit=1)
+        if not config or not config.module1_active:
+            return b''
+        
+        # Get category data
+        bloque1 = self._get_bloque1_data(pedidos, web_orders)
+        if not bloque1:
+            return b''
+        
+        # Get all store names from products
+        all_stores = set()
+        for cat_id, cat_data in bloque1.items():
+            for prod in cat_data.get('products', []):
+                for store in prod.get('tiendas', {}):
+                    all_stores.add(store)
+        sorted_stores = sorted(all_stores)
+        
+        # Build HTML for each category page
+        category_pages_html = ""
+        first = True
+        for cat_id, cat_data in bloque1.items():
+            copies = cat_data.get('copies', 1)
+            for copy_num in range(copies):
+                if not first:
+                    category_pages_html += '<div class="page-break"></div>\n'
+                first = False
+                
+                # Category header
+                copy_label = ' (Copia %d de %d)' % (copy_num + 1, copies) if copies > 1 else ''
+                category_pages_html += '<div class="category-name">%s<span class="copy-label">%s</span></div>\n' % (
+                    self._escape_html(cat_data['name']), copy_label)
+                
+                # Table headers
+                category_pages_html += '<table>\n<thead>\n<tr>\n'
+                category_pages_html += '<th style="width:35%">Producto</th>\n'
+                category_pages_html += '<th class="r" style="width:8%">Total</th>\n'
+                category_pages_html += '<th class="r" style="width:8%">Ext</th>\n'
+                for store in sorted_stores:
+                    category_pages_html += '<th class="r" style="width:%d%%">%s</th>\n' % (
+                        max(5, min(10, 45 // max(len(sorted_stores), 1))), self._escape_html(store))
+                category_pages_html += '</tr>\n</thead>\n<tbody>\n'
+                
+                # Product rows
+                for prod in cat_data.get('products', []):
+                    category_pages_html += '<tr>\n'
+                    category_pages_html += '<td>%s</td>\n' % self._escape_html(prod['name'])
+                    category_pages_html += '<td class="r">%d</td>\n' % int(prod['total'])
+                    category_pages_html += '<td class="r">%d</td>\n' % int(prod['exterior'])
+                    for store in sorted_stores:
+                        qty = prod.get('tiendas', {}).get(store, 0)
+                        category_pages_html += '<td class="r">%d</td>\n' % int(qty)
+                    category_pages_html += '</tr>\n'
+                
+                category_pages_html += '</tbody>\n</table>\n'
+        
+        # Read template
+        template_path = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            'report', 'templates', 'modulo1.html'
+        )
+        with open(template_path, 'r') as f:
+            template = f.read()
+        
+        # Replace placeholders
+        html = template.replace('{FECHA}', str(fecha))
+        html = html.replace('<!--CATEGORY_PAGES-->', category_pages_html)
+        
+        # Generate PDF
+        pdf = weasyprint.HTML(string=html).write_pdf()
+        return pdf
+
+    @api.model
+    def _generate_modulo2_pdf(self, pedidos, fecha, title):
+        """Module 2: Store encargos (bloque3 data)."""
+        config = self.env['tpv.pedido.config'].sudo().search([], limit=1)
+        if not config or not config.module2_active:
+            return b''
+
+        bloque3 = self._get_bloque3_data(pedidos)
+        if not bloque3:
+            return b''
+
+        content = ""
+        for tienda_name in sorted(bloque3.keys()):
+            encargos = bloque3[tienda_name]
+            if not encargos:
+                continue
+            content += '<div class="section-title">%s</div>\n' % self._escape_html(tienda_name)
+
+            for enc in encargos:
+                content += '<div class="item-box">\n'
+                content += '<div class="item-name">%s</div>\n' % self._escape_html(enc['name'])
+                if enc.get('nota'):
+                    content += '<div class="item-sub">%s</div>\n' % self._escape_html(enc['nota'])
+                for i, l in enumerate(enc.get('lines', [])):
+                    row_class = 'item-line-alt' if i % 2 == 0 else 'item-line-alt even'
+                    nota = (' <span class="item-sub">[%s]</span>' % self._escape_html(l['nota'])) if l.get('nota') else ''
+                    content += '<div class="%s">%s <span class="qty">%d uds</span>%s</div>\n' % (
+                        row_class, self._escape_html(l['name']), int(l['qty']), nota)
+                content += '</div>\n'
+
+        if not content:
+            return b''
+        return self._render_weasy_template('modulo_generico.html', title, fecha, content)
+
+    @api.model
+    def _generate_modulo3_pdf(self, web_orders, fecha, title):
+        """Module 3: External clients (bloque2 data)."""
+        config = self.env['tpv.pedido.config'].sudo().search([], limit=1)
+        if not config or not config.module3_active:
+            return b''
+
+        bloque2 = self._get_bloque2_data(web_orders)
+        if not bloque2:
+            return b''
+
+        content = ""
+        for cliente in bloque2:
+            content += '<div class="item-box">\n'
+            content += '<div class="item-name">%s</div>\n' % self._escape_html(cliente['name'])
+            if cliente.get('phone'):
+                content += '<div class="item-sub">Tel: %s</div>\n' % self._escape_html(cliente['phone'])
+            if cliente.get('address'):
+                content += '<div class="item-sub">Dir: %s</div>\n' % self._escape_html(cliente['address'])
+            content += '<div class="item-sub">Entrega: %s</div>\n' % self._escape_html(cliente.get('delivery', ''))
+            content += '<div class="item-sub">Total: %.2f €</div>\n' % cliente.get('total_amount', 0)
+            for i, prod in enumerate(cliente.get('products', [])):
+                row_class = 'item-line-alt' if i % 2 == 0 else 'item-line-alt even'
+                content += '<div class="%s">%s <span class="qty">%d uds</span></div>\n' % (
+                    row_class, self._escape_html(prod['name']), int(prod['qty']))
+            content += '</div>\n'
+
+        if not content:
+            return b''
+        return self._render_weasy_template('modulo_generico.html', title, fecha, content)
+
+    @api.model
+    def _generate_modulo4_pdf(self, pedidos, fecha, title):
+        """Module 4: Pastry encargos (bloque4 data)."""
+        config = self.env['tpv.pedido.config'].sudo().search([], limit=1)
+        if not config or not config.module4_active:
+            return b''
+
+        bloque4 = self._get_bloque4_data(pedidos)
+        if not bloque4:
+            return b''
+
+        content = ""
+        for tienda_name in sorted(bloque4.keys()):
+            encargos = bloque4[tienda_name]
+            if not encargos:
+                continue
+            content += '<div class="section-title">%s</div>\n' % self._escape_html(tienda_name)
+
+            for enc in encargos:
+                content += '<div class="item-box">\n'
+                content += '<div class="item-name">%s</div>\n' % self._escape_html(enc['name'])
+                if enc.get('nota'):
+                    content += '<div class="item-sub">%s</div>\n' % self._escape_html(enc['nota'])
+                for i, l in enumerate(enc.get('lines', [])):
+                    row_class = 'item-line-alt' if i % 2 == 0 else 'item-line-alt even'
+                    nota = (' <span class="item-sub">[%s]</span>' % self._escape_html(l['nota'])) if l.get('nota') else ''
+                    content += '<div class="%s">%s <span class="qty">%d uds</span>%s</div>\n' % (
+                        row_class, self._escape_html(l['name']), int(l['qty']), nota)
+                content += '</div>\n'
+
+        if not content:
+            return b''
+        return self._render_weasy_template('modulo_generico.html', title, fecha, content)
+
+    @api.model
+    def _generate_modulo5_pdf(self, pedidos, web_orders, fecha, title):
+        """Module 5: Custom orders with origin filter (bloque5 data)."""
+        config = self.env['tpv.pedido.config'].sudo().search([], limit=1)
+        if not config or not config.module5_active:
+            return b''
+
+        bloque5 = self._get_bloque5_data(pedidos, web_orders)
+        if not bloque5:
+            return b''
+
+        content = ""
+        first = True
+        for item in bloque5:
+            if not first:
+                content += '<div class="page-break"></div>\n'
+            first = False
+            content += '<div class="item-box">\n'
+            content += '<div class="item-name">%s</div>\n' % self._escape_html(item['name'])
+            content += '<div class="item-sub">Origen: %s</div>\n' % self._escape_html(item.get('origen', ''))
+            if item.get('tienda'):
+                content += '<div class="item-sub">Tienda: %s</div>\n' % self._escape_html(item['tienda'])
+            if item.get('nota'):
+                content += '<div class="item-sub">%s</div>\n' % self._escape_html(item['nota'])
+            for l in item.get('lines', []):
+                content += '<div class="item-line">%s <span class="qty">%d uds</span></div>\n' % (
+                    self._escape_html(l['name']), int(l['qty']))
+            content += '</div>\n'
+
+        if not content:
+            return b''
+        return self._render_weasy_template('modulo_generico.html', title, fecha, content)
+
+    @api.model
+    def _escape_html(self, text):
+        """Escape HTML special characters."""
+        if not text:
+            return ''
+        text = str(text)
+        text = text.replace('&', '&amp;')
+        text = text.replace('<', '&lt;')
+        text = text.replace('>', '&gt;')
+        text = text.replace('"', '&quot;')
+        return text
 
     @api.model
     def _get_bloque1_data(self, pedidos, web_orders):

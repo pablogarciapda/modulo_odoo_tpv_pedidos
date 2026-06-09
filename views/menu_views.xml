@@ -24,7 +24,7 @@
         action="tpv_nota_categoria_action"
         sequence="20"/>
 
-    <!-- Acción URL para Informes Web (debe ir ANTES del menuitem) -->
+    <!-- Acción URL para Informes Web -->
     <record id="action_open_web_informes" model="ir.actions.act_url">
         <field name="name">Informes Pedidos</field>
         <field name="url">/tpv_pedidos/informes</field>
