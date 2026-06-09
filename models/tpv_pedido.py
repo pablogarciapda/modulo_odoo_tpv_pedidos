@@ -322,11 +322,11 @@ class TpvPedido(models.Model):
                 'origen': 'tpv',  # TPV pedido
             })
 
-        # Add web orders (sale.order with delivery today or tomorrow)
+        # Add web orders (sale.order without tpv_pedido_id)
         web_orders = self.env['sale.order'].sudo().search([
-            ('fecha_entrega', 'in', [today, tomorrow]),
             ('state', '=', 'sale'),
-        ], order='name desc')
+            ('tpv_pedido_id', '=', False),
+        ], order='name desc', limit=50)
 
         for so in web_orders:
             # Skip if already a tpv.pedido
@@ -505,10 +505,10 @@ class TpvPedido(models.Model):
             ('fecha_entrega', '=', today + timedelta(days=1)),
         ])
 
-        # Clientes web (sale.order con fecha_entrega = today+1 para fabricar hoy)
+        # Clientes web (todos los sale.order confirmados sin tpv_pedido asociado)
         web_orders = self.env['sale.order'].search([
-            ('fecha_entrega', '=', today + timedelta(days=1)),
             ('state', '=', 'sale'),
+            ('tpv_pedido_id', '=', False),
         ])
 
         all_pedidos = pedidos_tienda + pedidos_encargo
