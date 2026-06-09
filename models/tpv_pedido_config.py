@@ -116,8 +116,8 @@ class TpvPedidoConfig(models.Model):
             ('fecha_entrega', '>=', today),
         ])
         web_orders = self.env['sale.order'].search([
-            ('fecha_entrega', '>=', today),
             ('state', '=', 'sale'),
+            ('tpv_pedido_id', '=', False),
         ])
 
         if not all_pedidos and not web_orders:
