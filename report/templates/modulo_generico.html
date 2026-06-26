@@ -6,27 +6,27 @@
 @page { size: A4 portrait; margin: 1.5cm;
     @bottom-center {
         content: "Pagina " counter(page) " de " counter(pages);
-        font-size: 8px;
+        font-size: {FONT_SIZE_FOOTER}px;
         color: #999;
         font-family: 'DejaVu Sans', Arial, sans-serif;
     }
 }
-body { font-family: 'DejaVu Sans', Arial, sans-serif; font-size: 10px; color: #222; }
-.title { font-size: 16px; font-weight: bold; margin-bottom: 4px; }
-.date { font-size: 11px; color: #666; margin-bottom: 12px; }
-.section-title { font-size: 13px; font-weight: bold; margin: 10px 0 4px 0; color: #1a1a1a; border-bottom: 2px solid #333; padding-bottom: 3px; }
-.item-box { border: 1px solid #ddd; border-radius: 4px; padding: 6px 8px; margin-bottom: 6px; background: #fafafa; }
-.item-name { font-weight: bold; font-size: 10px; }
-.item-sub { color: #666; font-size: 9px; }
-.item-line { padding: 2px 0; font-size: 9.5px; border-bottom: 1px dotted #eee; }
+body { font-family: 'DejaVu Sans', Arial, sans-serif; font-size: {FONT_SIZE}px; color: #222; }
+.title { font-size: {FONT_SIZE_TITLE}px; font-weight: bold; margin-bottom: 4px; }
+.date { font-size: {FONT_SIZE_DATE}px; color: #666; margin-bottom: 12px; }
+.section-title { font-size: {FONT_SIZE_SECTION}px; font-weight: bold; margin: 10px 0 4px 0; color: #1a1a1a; border-bottom: 2px solid #333; padding-bottom: 3px; }
+.item-box { border: 1px solid #ddd; border-radius: 4px; padding: 6px 8px; margin-bottom: 6px; }
+.item-name { font-weight: bold; font-size: {FONT_SIZE}px; }
+.item-sub { color: #666; font-size: {FONT_SIZE_SUB}px; }
+.item-line { padding: 2px 0; font-size: {FONT_SIZE}px; border-bottom: 1px dotted #ccc; }
 .item-line .qty { float: right; font-weight: bold; }
-.item-line-alt { padding: 3px 0; font-size: 9.5px; border-bottom: 1px dotted #ddd; }
-.item-line-alt.even { background-color: #f5f5f5; }
+.item-line-alt { padding: 3px 0; font-size: {FONT_SIZE}px; border-bottom: 1px dashed #999; }
 .item-line-alt .qty { float: right; font-weight: bold; }
+.item-note { font-size: {FONT_SIZE_NOTES}px; color: #888; font-style: italic; padding-left: 12px; padding-bottom: 2px; }
 .page-break { page-break-before: always; }
 table { width: 100%; border-collapse: collapse; }
-th { background: #2c2c2c; color: #fff; padding: 4px; font-size: 9px; text-align: left; }
-td { padding: 3px 4px; border-bottom: 1px solid #eee; font-size: 9.5px; }
+th { background: #2c2c2c; color: #fff; padding: 4px; font-size: {FONT_SIZE_TABLE_HEADER}px; text-align: left; }
+td { padding: 3px 4px; border-bottom: 1px solid #eee; font-size: {FONT_SIZE_TABLE_CELL}px; }
 td.r { text-align: right; }
 </style>
 </head>

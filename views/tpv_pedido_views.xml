@@ -18,6 +18,9 @@
                         type="object" class="oe_highlight"
                         invisible="state != 'confirmed'"
                         data-hotkey="w"/>
+                    <button name="action_view_sale_order" string="Pedido de Venta"
+                        type="object" class="btn btn-primary"
+                        invisible="sale_order_id == False"/>
                     <button name="action_cancel" string="Cancelar"
                         type="object"
                         invisible="state not in ('draft', 'confirmed')"/>
@@ -28,13 +31,6 @@
                         statusbar_visible="draft,confirmed,done"/>
                 </header>
                 <sheet>
-                    <div class="oe_button_box" name="button_box">
-                        <button name="action_view_sale_order" string="Pedido de Venta"
-                            type="object" class="oe_stat_button" icon="fa-file-text"
-                            invisible="sale_order_id == False">
-                            <field name="sale_order_id" widget="statinfo"/>
-                        </button>
-                    </div>
                     <div class="oe_title">
                         <h1>
                             <field name="name" readonly="state != 'draft'"

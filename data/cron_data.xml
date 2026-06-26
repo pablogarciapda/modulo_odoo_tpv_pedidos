@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <data noupdate="1">
-        <!-- Cron: Impresión automática del resumen de pedidos a las 02:00 -->
+    <data>
+        <!-- Cron: Impresión automática del resumen de pedidos según config -->
         <record id="cron_tpv_pedido_imprimir_resumen" model="ir.cron">
             <field name="name">TPV Pedidos: Imprimir resumen diario del obrador</field>
             <field name="model_id" ref="model_tpv_pedido"/>
             <field name="state">code</field>
             <field name="code">model._cron_imprimir_resumen_obrador()</field>
             <field name="interval_number">1</field>
-            <field name="interval_type">days</field>
-            <field name="nextcall" eval="(DateTime.now().replace(hour=2, minute=0) + timedelta(days=1)).strftime('%Y-%m-%d %H:%M:%S')"/>
+            <field name="interval_type">minutes</field>
+            <field name="nextcall" eval="DateTime.now().strftime('%Y-%m-%d %H:%M:%S')"/>
             <field name="priority">5</field>
         </record>
     </data>

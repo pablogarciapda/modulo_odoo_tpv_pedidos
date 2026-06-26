@@ -41,9 +41,6 @@ class TpvPedido(models.Model):
     partner_id = fields.Many2one(
         'res.partner',
         string='Cliente',
-        default=lambda self: self.env.ref(
-            'tpv_pedidos.partner_obrador', raise_if_not_found=False
-        ),
         tracking=True,
     )
     state = fields.Selection(
@@ -111,6 +108,26 @@ class TpvPedido(models.Model):
             else:
                 rec.fecha_entrega = rec.date_pedido
 
+    @api.model
+    def _get_store_partner(self, pos_config_id):
+        """
+        Devuelve o crea un partner con el nombre de la tienda (pos.config).
+        Este partner se usa como cliente del pedido en lugar del OBRADOR genérico.
+        """
+        pos_config = self.env['pos.config'].browse(pos_config_id)
+        if not pos_config or not pos_config.name:
+            return False
+        store_name = pos_config.name
+        partner = self.env['res.partner'].sudo().search([
+            ('name', '=', store_name),
+        ], limit=1)
+        if not partner:
+            partner = self.env['res.partner'].sudo().create({
+                'name': store_name,
+                'is_company': True,
+            })
+        return partner
+
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
@@ -118,6 +135,11 @@ class TpvPedido(models.Model):
                 vals['name'] = self.env['ir.sequence'].next_by_code(
                     'tpv.pedido'
                 ) or _('New')
+            # Asignar la tienda como cliente por defecto
+            if not vals.get('partner_id') and vals.get('pos_config_id'):
+                store_partner = self._get_store_partner(vals['pos_config_id'])
+                if store_partner:
+                    vals['partner_id'] = store_partner.id
         return super().create(vals_list)
 
     def action_confirm(self):
@@ -180,13 +202,11 @@ class TpvPedido(models.Model):
                 _('El pedido debe tener al menos una línea.')
             )
 
-        # Cliente por defecto: OBRADOR
+        # Cliente por defecto: el nombre de la tienda
         if not partner_id:
-            obrador = self.env.ref(
-                'tpv_pedidos.partner_obrador', raise_if_not_found=False
-            )
-            if obrador:
-                partner_id = obrador.id
+            store_partner = self._get_store_partner(pos_config_id)
+            if store_partner:
+                partner_id = store_partner.id
 
         # Validate fecha_entrega
         if fecha_entrega:
@@ -196,6 +216,8 @@ class TpvPedido(models.Model):
                 raise ValidationError(
                     _('La fecha de entrega debe ser igual o posterior a mañana.')
                 )
+        else:
+            fecha_entrega = fields.Date.today() + timedelta(days=1)
 
         line_vals = []
         for line in lines:
@@ -282,8 +304,12 @@ class TpvPedido(models.Model):
     @api.model
     def get_pedidos_today_for_pos(self, pos_config_id):
         """
-        Devuelve los pedidos del día para una tienda específica.
-        Incluye pedidos TPV y pedidos web (sale.order).
+        Devuelve los pedidos para una tienda específica desde el POS.
+        Incluye:
+          - Pedidos de hoy (date_pedido = today) para poder modificarlos.
+          - Encargos con fecha de entrega >= mañana (fecha_entrega >= tomorrow)
+            para poder cancelarlos o modificarlos.
+        Solo pedidos del TPV indicado (no incluye pedidos web).
         Usa sudo() para evitar problemas de permisos del cajero.
         """
         from datetime import date, timedelta
@@ -291,14 +317,17 @@ class TpvPedido(models.Model):
         tomorrow = today + timedelta(days=1)
 
         domain = [
-            ('date_pedido', '=', today),
             ('pos_config_id', '=', pos_config_id),
             ('state', 'in', ['draft', 'confirmed']),
+            '|',
+            ('date_pedido', '=', today),
+            '&',
+            ('tipo_pedido', '=', 'encargo'),
+            ('fecha_entrega', '>=', tomorrow),
         ]
         pedidos = self.sudo().search(domain, order='id desc')
         result = []
 
-        # Add TPV pedidos
         for p in pedidos:
             lines_data = []
             for l in p.line_ids.sudo():
@@ -319,39 +348,7 @@ class TpvPedido(models.Model):
                 'nota_general': p.nota_general or '',
                 'fecha_entrega': p.fecha_entrega,
                 'line_ids': lines_data,
-                'origen': 'tpv',  # TPV pedido
-            })
-
-        # Add web orders (sale.order without tpv_pedido_id)
-        web_orders = self.env['sale.order'].sudo().search([
-            ('state', '=', 'sale'),
-            ('tpv_pedido_id', '=', False),
-        ], order='name desc', limit=50)
-
-        for so in web_orders:
-            # Skip if already a tpv.pedido
-            if so.tpv_pedido_id:
-                continue
-            lines_data = []
-            for line in so.order_line.sudo():
-                lines_data.append({
-                    'id': line.id,
-                    'product_id': line.product_id.id,
-                    'product_name': line.product_id.display_name,
-                    'qty': line.product_uom_qty,
-                    'nota_linea': '',
-                    'nota_categoria_id': False,
-                    'nota_categoria_name': '',
-                })
-            result.append({
-                'id': so.id,
-                'name': so.name,
-                'tipo_pedido': 'web',
-                'state': so.state,
-                'nota_general': so.note or '',
-                'fecha_entrega': so.fecha_entrega,
-                'line_ids': lines_data,
-                'origen': 'web',
+                'origen': 'tpv',
             })
 
         return result
@@ -363,17 +360,11 @@ class TpvPedido(models.Model):
     def _create_sale_order(self):
         """Crea un sale.order confirmado a partir del pedido."""
         self.ensure_one()
-        partner = self.partner_id or self.env.ref(
-            'tpv_pedidos.partner_obrador', raise_if_not_found=False
-        )
-        if not partner:
-            partner = self.env['res.partner'].search(
-                [('name', '=', 'OBRADOR')], limit=1
-            )
+        partner = self.partner_id
         if not partner:
             raise ValidationError(
-                _('No se encontró el contacto OBRADOR. '
-                  'Verifica que los datos del módulo se hayan cargado.')
+                _('El pedido %s no tiene un cliente asignado. '
+                  'Los pedidos deben tener la tienda como cliente.') % self.name
             )
 
         # Pricelist: usar el del partner o buscar uno disponible
@@ -432,18 +423,20 @@ class TpvPedido(models.Model):
                 _('Error al crear el pedido de venta (consulta los logs del servidor): %s') % str(e)
             )
 
-    def get_resumen_por_producto(self, date_from=None, date_to=None):
+    def get_resumen_por_producto(self, date_from=None, date_to=None, pedidos=None):
         """
         Devuelve un diccionario con el resumen agregado por producto.
         Formato: {product_id: {name, qty_total, lineas_con_nota: [{nota, qty, tienda}]}}
         Usado por el reporte de impresión del obrador.
+        Si se pasa 'pedidos', se usa ese recordset en lugar de buscar por fecha.
         """
-        domain = [('state', '=', 'confirmed')]
-        if date_from:
-            domain.append(('date_pedido', '>=', date_from))
-        if date_to:
-            domain.append(('date_pedido', '<=', date_to))
-        pedidos = self.search(domain)
+        if pedidos is None:
+            domain = [('state', '=', 'confirmed')]
+            if date_from:
+                domain.append(('date_pedido', '>=', date_from))
+            if date_to:
+                domain.append(('date_pedido', '<=', date_to))
+            pedidos = self.search(domain)
         resumen = {}
         for pedido in pedidos:
             tienda = pedido.pos_config_id.name or 'Sin TPV'
@@ -475,45 +468,42 @@ class TpvPedido(models.Model):
 
     @api.model
     def _cron_imprimir_resumen_obrador(self):
-        """Cron que corre cada hora. Procesa solo entre 00:01 y 03:00."""
+        """Cron que corre cada 1 minuto. Solo ejecuta si la hora España coincide con la configurada."""
+        import pytz
         from datetime import datetime
-        now = datetime.now()
-        hora_actual = now.hour + now.minute / 60.0
 
-        # Ventana de impresion: 00:01 - 03:00
-        if hora_actual < 0.01 or hora_actual > 3.0:
-            return
+        spain_tz = pytz.timezone('Europe/Madrid')
+        now = datetime.now(spain_tz)
 
         config = self.env['tpv.pedido.config'].search([], limit=1)
-        if not config or not config.printer_ip:
+        if not config:
             return
+
+        if not config.printer_ip and not (config.print_email_active and config.print_email_to):
+            return
+
+        if now.hour != int(config.print_hour) or now.minute != int(config.print_minute):
+            return
+
+        _logger.info(
+            'CRON: hora España %02d:%02d — ejecutando impresion',
+            now.hour, now.minute,
+        )
 
         today = fields.Date.today()
 
-        # Obtener pedidos a fabricar HOY
-        # Pedidos tienda: fecha_entrega = today
-        pedidos_tienda = self.search([
+        all_pedidos = self.search([
             ('state', '=', 'confirmed'),
-            ('tipo_pedido', '=', 'pedido_tienda'),
             ('fecha_entrega', '=', today),
         ])
 
-        # Encargos: fecha_entrega - 1 = today (se fabrican el dia antes)
-        pedidos_encargo = self.search([
-            ('state', '=', 'confirmed'),
-            ('tipo_pedido', '=', 'encargo'),
-            ('fecha_entrega', '=', today + timedelta(days=1)),
-        ])
-
-        # Clientes web (todos los sale.order confirmados sin tpv_pedido asociado)
         web_orders = self.env['sale.order'].search([
+            ('fecha_entrega', '=', today),
             ('state', '=', 'sale'),
-            ('tpv_pedido_id', '=', False),
         ])
-
-        all_pedidos = pedidos_tienda + pedidos_encargo
 
         if not all_pedidos and not web_orders:
+            _logger.info('CRON: sin pedidos para hoy %s', today)
             return
 
         # Generar PDF con 4 bloques
@@ -528,6 +518,21 @@ class TpvPedido(models.Model):
         # Enviar email
         if config.print_email_active and config.print_email_to:
             self._enviar_reporte_email(config, pdf, today)
+
+        # Guardar backup del informe en disco
+        if pdf:
+            fecha_str = today.strftime('%Y-%m-%d') if hasattr(today, 'strftime') else str(today)
+            filename = 'resumen_obrador_%s.pdf' % fecha_str
+            BackupFile = self.env['tpv.backup.file']
+            file_path = BackupFile._save_pdf(pdf, filename)
+            BackupFile.create({
+                'name': 'Resumen obrador %s' % today,
+                'date': fields.Datetime.now(),
+                'date_pedido': today,
+                'filename': filename,
+                'file_path': file_path,
+            })
+            BackupFile._cleanup_old_files(days=30)
 
     def _do_print(self, config, pedidos, fecha):
         """Send the printout using the configured printer."""
@@ -602,9 +607,29 @@ class TpvPedido(models.Model):
         with open(template_path, 'r') as f:
             template = f.read()
 
+        config = self.env['tpv.pedido.config'].sudo().search([], limit=1)
+        font_size = config.font_size if config and config.font_size else 11
+        font_size_title = config.font_size_title if config and config.font_size_title else 14
+        font_size_section = config.font_size_section if config and config.font_size_section else 12
+        font_size_notes = config.font_size_notes if config and config.font_size_notes else 9
+        font_size_date = config.font_size_date if config and config.font_size_date else 11
+        font_size_sub = config.font_size_sub if config and config.font_size_sub else 10
+        font_size_table_header = config.font_size_table_header if config and config.font_size_table_header else 9
+        font_size_table_cell = config.font_size_table_cell if config and config.font_size_table_cell else 9
+        font_size_footer = config.font_size_footer if config and config.font_size_footer else 9
+
         html = template.replace('{TITLE}', title)
         html = html.replace('{FECHA}', str(fecha))
         html = html.replace('{MODULE_CONTENT}', content_html)
+        html = html.replace('{FONT_SIZE}', str(font_size))
+        html = html.replace('{FONT_SIZE_TITLE}', str(font_size_title))
+        html = html.replace('{FONT_SIZE_SECTION}', str(font_size_section))
+        html = html.replace('{FONT_SIZE_NOTES}', str(font_size_notes))
+        html = html.replace('{FONT_SIZE_DATE}', str(font_size_date))
+        html = html.replace('{FONT_SIZE_SUB}', str(font_size_sub))
+        html = html.replace('{FONT_SIZE_TABLE_HEADER}', str(font_size_table_header))
+        html = html.replace('{FONT_SIZE_TABLE_CELL}', str(font_size_table_cell))
+        html = html.replace('{FONT_SIZE_FOOTER}', str(font_size_footer))
 
         return weasyprint.HTML(string=html).write_pdf()
 
@@ -651,13 +676,15 @@ class TpvPedido(models.Model):
                     self._escape_html(cat_data['name']), copy_label)
                 
                 # Table headers
+                n_stores = max(len(sorted_stores), 1)
+                store_w = max(3, min(8, (100 - 22 - 6 - 6) // n_stores))
                 category_pages_html += '<table>\n<thead>\n<tr>\n'
-                category_pages_html += '<th style="width:35%">Producto</th>\n'
-                category_pages_html += '<th class="r" style="width:8%">Total</th>\n'
-                category_pages_html += '<th class="r" style="width:8%">Ext</th>\n'
+                category_pages_html += '<th style="width:22%">Producto</th>\n'
+                category_pages_html += '<th class="r" style="width:6%">Total</th>\n'
+                category_pages_html += '<th class="r" style="width:6%">Ext</th>\n'
                 for store in sorted_stores:
                     category_pages_html += '<th class="r" style="width:%d%%">%s</th>\n' % (
-                        max(5, min(10, 45 // max(len(sorted_stores), 1))), self._escape_html(store))
+                        store_w, self._escape_html(store))
                 category_pages_html += '</tr>\n</thead>\n<tbody>\n'
                 
                 # Product rows
@@ -684,7 +711,26 @@ class TpvPedido(models.Model):
         # Replace placeholders
         html = template.replace('{FECHA}', str(fecha))
         html = html.replace('<!--CATEGORY_PAGES-->', category_pages_html)
-        
+
+        font_size = config.font_size if config and config.font_size else 11
+        font_size_title = config.font_size_title if config and config.font_size_title else 14
+        font_size_section = config.font_size_section if config and config.font_size_section else 12
+        font_size_notes = config.font_size_notes if config and config.font_size_notes else 9
+        font_size_date = config.font_size_date if config and config.font_size_date else 11
+        font_size_sub = config.font_size_sub if config and config.font_size_sub else 10
+        font_size_table_header = config.font_size_table_header if config and config.font_size_table_header else 9
+        font_size_table_cell = config.font_size_table_cell if config and config.font_size_table_cell else 9
+        font_size_footer = config.font_size_footer if config and config.font_size_footer else 9
+        html = html.replace('{FONT_SIZE}', str(font_size))
+        html = html.replace('{FONT_SIZE_TITLE}', str(font_size_title))
+        html = html.replace('{FONT_SIZE_SECTION}', str(font_size_section))
+        html = html.replace('{FONT_SIZE_NOTES}', str(font_size_notes))
+        html = html.replace('{FONT_SIZE_DATE}', str(font_size_date))
+        html = html.replace('{FONT_SIZE_SUB}', str(font_size_sub))
+        html = html.replace('{FONT_SIZE_TABLE_HEADER}', str(font_size_table_header))
+        html = html.replace('{FONT_SIZE_TABLE_CELL}', str(font_size_table_cell))
+        html = html.replace('{FONT_SIZE_FOOTER}', str(font_size_footer))
+
         # Generate PDF
         pdf = weasyprint.HTML(string=html).write_pdf()
         return pdf
@@ -710,13 +756,16 @@ class TpvPedido(models.Model):
             for enc in encargos:
                 content += '<div class="item-box">\n'
                 content += '<div class="item-name">%s</div>\n' % self._escape_html(enc['name'])
-                if enc.get('nota'):
-                    content += '<div class="item-sub">%s</div>\n' % self._escape_html(enc['nota'])
+                nota = self._strip_html(enc.get('nota', ''))
+                if nota:
+                    content += '<div class="item-sub">%s</div>\n' % self._escape_html(nota)
                 for i, l in enumerate(enc.get('lines', [])):
                     row_class = 'item-line-alt' if i % 2 == 0 else 'item-line-alt even'
-                    nota = (' <span class="item-sub">[%s]</span>' % self._escape_html(l['nota'])) if l.get('nota') else ''
-                    content += '<div class="%s">%s <span class="qty">%d uds</span>%s</div>\n' % (
-                        row_class, self._escape_html(l['name']), int(l['qty']), nota)
+                    content += '<div class="%s">%s <span class="qty">%d uds</span></div>\n' % (
+                        row_class, self._escape_html(l['name']), int(l['qty']))
+                    nota_linea = self._strip_html(l.get('nota', ''))
+                    if nota_linea:
+                        content += '<div class="item-note">%s</div>\n' % self._escape_html(nota_linea)
                 content += '</div>\n'
 
         if not content:
@@ -724,8 +773,8 @@ class TpvPedido(models.Model):
         return self._render_weasy_template('modulo_generico.html', title, fecha, content)
 
     @api.model
-    def _generate_modulo3_pdf(self, web_orders, fecha, title):
-        """Module 3: External clients (bloque2 data)."""
+    def _generate_modulo3_pdf(self, web_orders, fecha, title=None):
+        """Module 3: External clients VIP y WEB (bloque2 data)."""
         config = self.env['tpv.pedido.config'].sudo().search([], limit=1)
         if not config or not config.module3_active:
             return b''
@@ -734,25 +783,68 @@ class TpvPedido(models.Model):
         if not bloque2:
             return b''
 
+        title = title or 'Pedidos Clientes VIP y pedidos WEB'
+
         content = ""
-        for cliente in bloque2:
-            content += '<div class="item-box">\n'
-            content += '<div class="item-name">%s</div>\n' % self._escape_html(cliente['name'])
-            if cliente.get('phone'):
-                content += '<div class="item-sub">Tel: %s</div>\n' % self._escape_html(cliente['phone'])
-            if cliente.get('address'):
-                content += '<div class="item-sub">Dir: %s</div>\n' % self._escape_html(cliente['address'])
-            content += '<div class="item-sub">Entrega: %s</div>\n' % self._escape_html(cliente.get('delivery', ''))
-            content += '<div class="item-sub">Total: %.2f €</div>\n' % cliente.get('total_amount', 0)
-            for i, prod in enumerate(cliente.get('products', [])):
-                row_class = 'item-line-alt' if i % 2 == 0 else 'item-line-alt even'
-                content += '<div class="%s">%s <span class="qty">%d uds</span></div>\n' % (
-                    row_class, self._escape_html(prod['name']), int(prod['qty']))
-            content += '</div>\n'
+        vips = [c for c in bloque2 if c.get('tipo_cliente') == 'VIP']
+        webs = [c for c in bloque2 if c.get('tipo_cliente') == 'WEB']
+
+        if vips:
+            content += '<div class="section-title">CLIENTES VIP</div>\n'
+        for cliente in vips:
+            content += self._render_cliente_box(cliente)
+
+        if webs:
+            content += '<div class="section-title">PEDIDOS WEB (TARJETA)</div>\n'
+        for cliente in webs:
+            content += self._render_cliente_box(cliente)
 
         if not content:
             return b''
         return self._render_weasy_template('modulo_generico.html', title, fecha, content)
+
+    @api.model
+    def _render_cliente_box(self, cliente):
+        """Render a client order box for Module 3."""
+        html = '<div class="item-box">\n'
+        html += '<table style="width:100%; border:none;"><tr>\n'
+
+        # Left column
+        html += '<td style="width:60%; vertical-align:top; border:none; padding:0;">\n'
+        badge = cliente.get('tipo_cliente', '')
+        if badge:
+            html += '<div class="item-name">%s <strong>"(%s)"</strong></div>\n' % (
+                self._escape_html(cliente['name']), badge)
+        else:
+            html += '<div class="item-name">%s</div>\n' % self._escape_html(cliente['name'])
+        if cliente.get('phone'):
+            html += '<div class="item-sub">Tel: %s</div>\n' % self._escape_html(cliente['phone'])
+        html += '</td>\n'
+
+        # Right column
+        html += '<td style="width:40%; vertical-align:top; border:none; padding:0; text-align:right;">\n'
+        html += '<div class="item-sub">Entrega: %s</div>\n' % self._escape_html(cliente.get('delivery', ''))
+        if cliente.get('pickup_address'):
+            html += '<div class="item-sub">%s</div>\n' % self._escape_html(cliente['pickup_address'])
+        html += '<div class="item-sub">Total: %.2f €</div>\n' % cliente.get('total_amount', 0)
+        html += '</td>\n'
+        html += '</tr></table>\n'
+
+        # Nota general
+        nota_general = self._clean_note(cliente.get('nota_general', ''))
+        if nota_general:
+            html += '<div class="item-note">%s</div>\n' % self._escape_html(nota_general)
+
+        # Products
+        for i, prod in enumerate(cliente.get('products', [])):
+            html += '<div class="item-line-alt">%s <span class="qty">%d uds</span></div>\n' % (
+                self._escape_html(prod['name']), int(prod['qty']))
+            nota_producto = self._strip_html(prod.get('nota', ''))
+            if nota_producto:
+                html += '<div class="item-note">%s</div>\n' % self._escape_html(nota_producto)
+
+        html += '</div>\n'
+        return html
 
     @api.model
     def _generate_modulo4_pdf(self, pedidos, fecha, title):
@@ -775,13 +867,16 @@ class TpvPedido(models.Model):
             for enc in encargos:
                 content += '<div class="item-box">\n'
                 content += '<div class="item-name">%s</div>\n' % self._escape_html(enc['name'])
-                if enc.get('nota'):
-                    content += '<div class="item-sub">%s</div>\n' % self._escape_html(enc['nota'])
+                nota = self._strip_html(enc.get('nota', ''))
+                if nota:
+                    content += '<div class="item-sub">%s</div>\n' % self._escape_html(nota)
                 for i, l in enumerate(enc.get('lines', [])):
                     row_class = 'item-line-alt' if i % 2 == 0 else 'item-line-alt even'
-                    nota = (' <span class="item-sub">[%s]</span>' % self._escape_html(l['nota'])) if l.get('nota') else ''
-                    content += '<div class="%s">%s <span class="qty">%d uds</span>%s</div>\n' % (
-                        row_class, self._escape_html(l['name']), int(l['qty']), nota)
+                    content += '<div class="%s">%s <span class="qty">%d uds</span></div>\n' % (
+                        row_class, self._escape_html(l['name']), int(l['qty']))
+                    nota_linea = self._strip_html(l.get('nota', ''))
+                    if nota_linea:
+                        content += '<div class="item-note">%s</div>\n' % self._escape_html(nota_linea)
                 content += '</div>\n'
 
         if not content:
@@ -800,26 +895,63 @@ class TpvPedido(models.Model):
             return b''
 
         content = ""
-        first = True
         for item in bloque5:
-            if not first:
-                content += '<div class="page-break"></div>\n'
-            first = False
             content += '<div class="item-box">\n'
             content += '<div class="item-name">%s</div>\n' % self._escape_html(item['name'])
             content += '<div class="item-sub">Origen: %s</div>\n' % self._escape_html(item.get('origen', ''))
             if item.get('tienda'):
                 content += '<div class="item-sub">Tienda: %s</div>\n' % self._escape_html(item['tienda'])
-            if item.get('nota'):
-                content += '<div class="item-sub">%s</div>\n' % self._escape_html(item['nota'])
+            if item.get('cliente'):
+                content += '<div class="item-sub">Cliente: %s</div>\n' % self._escape_html(item['cliente'])
+            if item.get('pickup_name'):
+                content += '<div class="item-sub">Recogida: %s</div>\n' % self._escape_html(item['pickup_name'])
+            if item.get('pickup_address'):
+                content += '<div class="item-sub">%s</div>\n' % self._escape_html(item['pickup_address'])
+            nota_item = item.get('nota', '')
+            if nota_item:
+                content += '<div class="item-sub">%s</div>\n' % self._escape_html(nota_item)
             for l in item.get('lines', []):
                 content += '<div class="item-line">%s <span class="qty">%d uds</span></div>\n' % (
                     self._escape_html(l['name']), int(l['qty']))
+                nota_linea = self._strip_html(l.get('nota', ''))
+                if nota_linea:
+                    content += '<div class="item-note">%s</div>\n' % self._escape_html(nota_linea)
             content += '</div>\n'
 
         if not content:
             return b''
         return self._render_weasy_template('modulo_generico.html', title, fecha, content)
+
+    @api.model
+    def _strip_html(self, text):
+        """Remove HTML tags from text."""
+        if not text:
+            return ''
+        import re
+        text = str(text)
+        text = re.sub(r'<[^>]+>', ' ', text)
+        text = re.sub(r'\s+', ' ', text).strip()
+        return text
+
+    @api.model
+    def _clean_note(self, note):
+        """Strip HTML from note and remove terms boilerplate.
+        Returns empty string if the note looks like auto-generated T&C.
+        """
+        if not note:
+            return ''
+        plain = self._strip_html(note)
+        lines = [l.strip() for l in plain.split('\n') if l.strip()]
+        if len(lines) > 5 or len(plain) > 300:
+            return ''
+        term_keywords = ['términos', 'condiciones', 'terminos', 'conditions', 'terms',
+                         'http://', 'https://']
+        cleaned = [l for l in lines if not any(
+            kw in l.lower() for kw in term_keywords
+        )]
+        if not cleaned:
+            return ''
+        return '\n'.join(cleaned)
 
     @api.model
     def _escape_html(self, text):
@@ -919,8 +1051,12 @@ class TpvPedido(models.Model):
     def _get_bloque2_data(self, web_orders):
         """
         Bloque 2: Clientes externos.
-        Returns: [{name, phone, address, delivery, total_amount, products: [{name, qty}]}]
+        Returns: [{name, phone, pickup_name, pickup_address, delivery, total_amount, products: [{name, qty}]}]
         """
+        obrador_config = self.env['tpv.cliente.config'].sudo().get_config() if hasattr(
+            self.env['tpv.cliente.config'], 'get_config') else None
+        obrador_dir = obrador_config.obrador_direccion if obrador_config else ''
+
         result = []
         for so in web_orders:
             products = []
@@ -928,22 +1064,37 @@ class TpvPedido(models.Model):
                 products.append({
                     'name': line.product_id.display_name,
                     'qty': line.product_uom_qty,
+                    'nota': '',
                 })
-            # Determine delivery method
+
+            # Determine pickup location (TPV/store or obrador)
+            pickup_name = ''
+            pickup_address = ''
+            if so.pos_config_id:
+                pickup_name = so.pos_config_id.name
+                pickup_address = so.pos_config_id.direccion or ''
+            elif so.warehouse_id:
+                pickup_name = 'Obrador'
+                pickup_address = obrador_dir
+
             total = so.amount_total
-            if total > 25:
-                delivery = 'Envio a domicilio'
-            else:
-                delivery = 'Recoger en tienda'
-            if so.warehouse_id:
+            delivery = 'Recoger en tienda'
+            if pickup_name:
+                delivery = 'Recoger en %s' % pickup_name
+            if so.warehouse_id and not so.pos_config_id:
                 delivery = 'Recoger en obrador'
+
+            is_vip = so.partner_id.tpv_vip if hasattr(so.partner_id, 'tpv_vip') else False
 
             result.append({
                 'name': so.partner_id.name,
-                'phone': so.partner_id.phone or so.partner_id.mobile or '',
-                'address': so.partner_id.contact_address or '',
+                'tipo_cliente': 'VIP' if is_vip else 'WEB',
+                'phone': so.partner_id.phone or getattr(so.partner_id, 'mobile', '') or '',
+                'pickup_name': pickup_name,
+                'pickup_address': pickup_address,
                 'delivery': delivery,
                 'total_amount': total,
+                'nota_general': so.note or '',
                 'products': products,
             })
         return result
@@ -1089,12 +1240,16 @@ class TpvPedido(models.Model):
                     'name': p.name,
                     'origen': dict(p._fields['tipo_pedido'].selection).get(p.tipo_pedido, p.tipo_pedido),
                     'tienda': p.pos_config_id.name or '',
-                    'nota': p.nota_general or '',
+                    'nota': self._clean_note(p.nota_general or ''),
                     'lines': lines,
                 })
 
         # Process web orders
         if config.module5_origin_web and web_orders:
+            obrador_config = self.env['tpv.cliente.config'].sudo().get_config() if hasattr(
+                self.env['tpv.cliente.config'], 'get_config') else None
+            obrador_dir = obrador_config.obrador_direccion if obrador_config else ''
+
             for so in web_orders:
                 lines = []
                 for line in so.order_line:
@@ -1108,11 +1263,23 @@ class TpvPedido(models.Model):
                         'nota': '',
                     })
                 if lines:
+                    pickup_name = ''
+                    pickup_address = ''
+                    if so.pos_config_id:
+                        pickup_name = so.pos_config_id.name
+                        pickup_address = so.pos_config_id.direccion or ''
+                    elif so.warehouse_id:
+                        pickup_name = 'Obrador'
+                        pickup_address = obrador_dir
+
+                    is_vip = so.partner_id.tpv_vip if hasattr(so.partner_id, 'tpv_vip') else False
                     result.append({
                         'name': so.name,
-                        'origen': 'Web',
-                        'tienda': '',
-                        'nota': so.note or '',
+                        'origen': 'VIP' if is_vip else 'Web',
+                        'cliente': so.partner_id.name,
+                        'pickup_name': pickup_name,
+                        'pickup_address': pickup_address,
+                        'nota': self._clean_note(so.note or ''),
                         'lines': lines,
                     })
 
@@ -1133,7 +1300,7 @@ class TpvPedido(models.Model):
                 <p>Saludos.</p>
             ''' % fecha,
             'email_to': config.print_email_to,
-            'email_from': self.env.user.email or self.env.company.email,
+            'email_from': self.env['ir.mail_server'].sudo().search([('active', '=', True)], limit=1).smtp_user or self.env.company.email,
             'attachment_ids': [(0, 0, {
                 'name': 'resumen_obrador_%s.pdf' % fecha,
                 'datas': base64.b64encode(pdf_content).decode(),
@@ -1154,7 +1321,7 @@ class TpvPedido(models.Model):
             sock.settimeout(10)
             sock.connect((
                 config.printer_ip,
-                config.printer_port or 9100,
+                int(config.printer_port) if config.printer_port else 9100,
             ))
             # Enviar el PDF directamente (impresoras de red modernas
             # aceptan PDF en el stream)
@@ -1165,14 +1332,14 @@ class TpvPedido(models.Model):
             _logger.error(
                 'Error conectando a impresora de red %s:%s',
                 config.printer_ip,
-                config.printer_port,
+                config.printer_port or '9100',
             )
 
     def _enviar_esc_pos(self, config, pedidos, fecha):
         """Genera comandos ESC/POS para impresora térmica y los envía por socket."""
         import socket
-        resumen = pedidos.get_resumen_por_producto(date_from=fecha, date_to=fecha)
-        detalle = pedidos.get_detalle_por_tienda(date_from=fecha, date_to=fecha)
+        resumen = self.get_resumen_por_producto(pedidos=pedidos)
+        detalle = self.get_detalle_por_tienda(pedidos=pedidos)
 
         # Comandos ESC/POS básicos
         ESC = b'\x1b'
@@ -1244,7 +1411,7 @@ class TpvPedido(models.Model):
             sock.settimeout(10)
             sock.connect((
                 config.printer_ip,
-                config.printer_port or 9100,
+                int(config.printer_port) if config.printer_port else 9100,
             ))
             sock.sendall(cmds)
             sock.close()
@@ -1252,21 +1419,23 @@ class TpvPedido(models.Model):
             _logger.error(
                 'Error conectando a impresora ESC/POS %s:%s',
                 config.printer_ip,
-                config.printer_port,
+                config.printer_port or '9100',
             )
 
-    def get_detalle_por_tienda(self, date_from=None, date_to=None):
+    def get_detalle_por_tienda(self, date_from=None, date_to=None, pedidos=None):
         """
         Devuelve un diccionario con el detalle por tienda, separando encargos
         y pedidos de tienda.
         Formato: {tienda: {encargos: [pedido_vals], pedidos_tienda: [pedido_vals]}}
+        Si se pasa 'pedidos', se usa ese recordset en lugar de buscar por fecha.
         """
-        domain = [('state', '=', 'confirmed')]
-        if date_from:
-            domain.append(('date_pedido', '>=', date_from))
-        if date_to:
-            domain.append(('date_pedido', '<=', date_to))
-        pedidos = self.search(domain)
+        if pedidos is None:
+            domain = [('state', '=', 'confirmed')]
+            if date_from:
+                domain.append(('date_pedido', '>=', date_from))
+            if date_to:
+                domain.append(('date_pedido', '<=', date_to))
+            pedidos = self.search(domain)
         detalle = {}
         for pedido in pedidos:
             tienda = pedido.pos_config_id.name or 'Sin TPV'

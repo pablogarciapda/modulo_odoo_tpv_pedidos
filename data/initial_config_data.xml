@@ -3,7 +3,8 @@
     <data noupdate="1">
         <record id="tpv_pedido_config_default" model="tpv.pedido.config">
             <field name="name">Configuracion Obrador</field>
-            <field name="print_hour">2</field>
+            <field name="print_hour">02</field>
+            <field name="print_minute">00</field>
         </record>
     </data>
 </odoo>

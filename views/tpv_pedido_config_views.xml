@@ -17,7 +17,7 @@
                     <group string="Impresora">
                         <group>
                             <field name="printer_ip" placeholder="192.168.1.100"/>
-                            <field name="printer_port"/>
+                            <field name="printer_port" placeholder="9100"/>
                         </group>
                         <group>
                             <field name="printer_type" widget="radio"/>
@@ -26,11 +26,36 @@
 
                     <group string="Programacion">
                         <group>
-                            <field name="print_hour"/>
-                            <p class="text-muted">Hora de impresion automatica.</p>
+                            <label for="print_hour" string="Hora de impresion"/>
+                            <div class="d-flex align-items-center" style="gap: 2px">
+                                <field name="print_hour" style="width:65px" options="{'no_label': True}"/>
+                                <span class="fw-bold">:</span>
+                                <field name="print_minute" style="width:65px" options="{'no_label': True}"/>
+                            </div>
+                            <p class="text-muted">Hora de impresion automatica (hora España).</p>
                         </group>
                         <group>
                             <field name="print_email_active"/>
+                        </group>
+                    </group>
+
+                    <group string="Fuentes de los informes">
+                        <group>
+                            <field name="font_size"/>
+                            <field name="font_size_title"/>
+                            <field name="font_size_section"/>
+                            <field name="font_size_notes"/>
+                            <field name="font_size_date"/>
+                        </group>
+                        <group>
+                            <field name="font_size_sub"/>
+                            <field name="font_size_table_header"/>
+                            <field name="font_size_table_cell"/>
+                            <field name="font_size_footer"/>
+                            <div class="d-flex mt-2">
+                                <button name="action_print_font_sample" string="Probar fuentes"
+                                    type="object" icon="fa-file-pdf-o" class="btn-secondary"/>
+                            </div>
                         </group>
                     </group>
 
