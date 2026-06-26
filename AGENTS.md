@@ -73,13 +73,20 @@ tpv.nota.categoria
 7. Controller JSON-RPC → crea `tpv.pedido` + `sale.order` confirmado
 8. Volver a LoginScreen
 
-### Impresión (Cron 02:00)
+### Impresión (Cron cada 1 min)
 
 - `_cron_imprimir_resumen_obrador()` en `tpv.pedido`
+- Corre cada 1 minuto, solo ejecuta si la hora España coincide con la configurada (hora+minuto)
+- `print_hour` (Selection 00-23) + `print_minute` (Selection 00-59) en `tpv.pedido.config`
+- Usa `pytz.timezone('Europe/Madrid')` para comparar hora actual con la configurada
 - Busca pedidos confirmed del día anterior
+- Busca pedidos web con `fecha_entrega = today`
 - Genera resumen por productos (totales + notas debajo)
 - Genera detalle por tienda (encargos y pedidos separados)
 - Envía por socket (ESC/POS o PDF raw) a la IP/puerto configurada
+- Guarda automáticamente un backup del PDF en disco (`/mnt/extra-addons/tpv_pedidos/backups/`), referencia en `tpv.backup.file`
+- Limpieza automática: borra backups con más de 30 días al generar uno nuevo
+- Los backups se gestionan desde el menú "Backups de impresión"
 
 ### Convenciones de Código
 
@@ -154,6 +161,21 @@ El reporte QWeb (`report_pedido_obrador.xml`) tiene dos secciones dentro de `t-c
 ## Rama activa
 - `feat/gestion-pedidos-informes` — gestión de pedidos + colores + UI táctil
 - `fix/js-imports-pedidoregistry` — ya mergeada a main ✅
+
+## Regla Elemental: Odoo 19 No Usa `<tree>` para Listas
+
+En Odoo 19, el tag `<tree>` **no existe** como tipo de vista. Se usa `<list>`.
+
+```
+INCORRECTO: <tree> → ParseError: "Invalid view type: 'tree'"
+CORRECTO:   <list> → Funciona
+```
+
+Además:
+- `<button>` va como **hijo directo** de `<list>`, no envuelto en `<header>`.
+- `<header>` dentro de `<list>` tampoco funciona.
+- **`@route(type='json')` deprecado**: En Odoo 19 usar `type='jsonrpc'`. NO usar `type='json'`.
+- Tipos válidos en Odoo 19: `list, form, graph, pivot, calendar, kanban, search, qweb, hierarchy, activity`
 
 ## Errores Encontrados y Solucionados
 
@@ -267,10 +289,23 @@ El reporte QWeb (`report_pedido_obrador.xml`) tiene dos secciones dentro de `t-c
 - **Causa**: `t-call="web.external_layout"` no generaba `<main>` cuando docs estaba vacío
 - **Fix**: Reemplazar `t-call` por `<main>` directo en el template
 
+### Error 23: Stat button overlay en formulario de pedido
+- **Síntoma**: Al abrir un pedido, el `oe_button_box` flota sobre el formulario tapando los campos.
+- **Causa**: `widget="statinfo"` dentro de `oe_stat_button` + `oe_button_box` con `position: absolute` en Odoo 19.
+- **Fix**: Eliminar el `oe_button_box`. Botón en header, campo `sale_order_id` en group.
+
+### Error 24: Cron diario con `nextcall` en UTC y ventana hardcodeada en CEST
+- **Síntoma**: El cron de impresión saltaba pero se salía inmediatamente: `hora_actual=4.00 fuera de ventana 00:01-03:00`.
+- **Causa 1**: El `nextcall` se insertaba como hora local pero Odoo la interpreta como UTC. A las 02:00 UTC son 04:00 CEST.
+- **Causa 2**: La ventana horaria (00:01-03:00) estaba hardcodeada en el código y no usaba el campo `print_hour` de la config.
+- **Fix**: Reemplazar `print_hour` (Selection simple) por `print_hour` + `print_minute` (Selection 00-23/00-59). El cron ahora corre cada 1 minuto y compara la hora España actual contra los valores de config. La ventana hardcodeada se eliminó.
+
 ## Version History
 
 | Version | Date | Description |
 |---------|------|-------------|
+| 19.0.4.0.0 | 2026-06-23 | **Fix cron impresión + backups PDF**: `print_hour`/`print_minute` como Selection 00-23/00-59. Cron cada 1 min, compara hora España con config. Nuevo modelo `tpv.backup.file` con backups automáticos al imprimir. Menú "Backups de impresión" con descarga ZIP + borrado automático. |
+| 19.0.3.1.0 | 2026-06-21 | Debug logs en cron. AGENTS.md completo. |
 | 19.0.3.0.0 | 2026-06-08 | WeasyPrint reports for all 5 modules. Landscape Module 1, portrait 2-5. HTML+CSS templates. |
 | 19.0.2.0.0 | 2026-06-07 | Web informes with filters, CSV, PDF download. Fecha entrega. |
 | 19.0.1.0.0 | 2026-06-03 | Initial version. POS pedidos, basic reports. |
