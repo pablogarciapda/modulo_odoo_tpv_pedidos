@@ -3,6 +3,8 @@
 import csv
 import io
 import logging
+import os
+import zipfile
 
 from datetime import datetime
 
@@ -21,7 +23,7 @@ def _build_category_path(product):
 
 class TpvPedidoController(http.Controller):
 
-    @http.route('/tpv_pedidos/create', type='json', auth='user', methods=['POST'])
+    @http.route('/tpv_pedidos/create', type='jsonrpc', auth='user', methods=['POST'])
     def create_pedido(self, pos_config_id, tipo_pedido, lines, nota_general='', partner_id=False):
         """
         Crea un pedido desde el frontend del TPV.
@@ -35,11 +37,11 @@ class TpvPedidoController(http.Controller):
         """
         Pedido = request.env['tpv.pedido'].sudo()
 
-        # Cliente por defecto: OBRADOR
+        # Cliente por defecto: el nombre de la tienda
         if not partner_id:
-            obrador = request.env.ref('tpv_pedidos.partner_obrador', raise_if_not_found=False)
-            if obrador:
-                partner_id = obrador.id
+            store_partner = request.env['tpv.pedido'].sudo()._get_store_partner(pos_config_id)
+            if store_partner:
+                partner_id = store_partner.id
 
         # Validar líneas
         if not lines:
@@ -75,7 +77,7 @@ class TpvPedidoController(http.Controller):
             _logger.error('Error creando pedido TPV: %s', str(e))
             return {'error': str(e)}
 
-    @http.route('/tpv_pedidos/get_nota_categorias', type='json', auth='user', methods=['POST'])
+    @http.route('/tpv_pedidos/get_nota_categorias', type='jsonrpc', auth='user', methods=['POST'])
     def get_nota_categorias(self):
         """Devuelve las categorías de notas activas para el frontend."""
         categorias = request.env['tpv.nota.categoria'].sudo().search([
@@ -86,28 +88,40 @@ class TpvPedidoController(http.Controller):
             'name': c.name,
         } for c in categorias]
 
-    @http.route('/tpv_pedidos/get_partner_obrador', type='json', auth='user', methods=['POST'])
-    def get_partner_obrador(self):
-        """Devuelve el ID del partner OBRADOR para el frontend."""
+    @http.route('/tpv_pedidos/get_partner_obrador', type='jsonrpc', auth='user', methods=['POST'])
+    def get_partner_obrador(self, pos_config_id=None):
+        """
+        Devuelve el partner de la tienda para usar como cliente del pedido.
+        Si no se especifica tienda, devuelve el partner OBRADOR (compatibilidad).
+        """
+        if pos_config_id:
+            partner = request.env['tpv.pedido'].sudo()._get_store_partner(pos_config_id)
+            if partner:
+                return {'partner_id': partner.id, 'name': partner.name}
         obrador = request.env.ref('tpv_pedidos.partner_obrador', raise_if_not_found=False)
         if obrador:
             return {'partner_id': obrador.id, 'name': obrador.name}
-        # Fallback: buscar por nombre
         partner = request.env['res.partner'].sudo().search([
             ('name', '=', 'OBRADOR'),
         ], limit=1)
         return {'partner_id': partner.id if partner else False, 'name': partner.name if partner else ''}
 
-    @http.route('/tpv_pedidos/get_pedidos_today', type='json', auth='user', methods=['POST'])
+    @http.route('/tpv_pedidos/get_pedidos_today', type='jsonrpc', auth='user', methods=['POST'])
     def get_pedidos_today(self, pos_config_id=False):
         """
-        Devuelve los pedidos del día para una tienda específica
-        o todas las tiendas si no se especifica.
+        Devuelve pedidos de hoy + encargos con entrega >= mañana.
+        Filtra por tienda si se especifica pos_config_id.
         """
-        from datetime import date
+        from datetime import date, timedelta
+        today = date.today()
+        tomorrow = today + timedelta(days=1)
         domain = [
-            ('date_pedido', '=', date.today()),
             ('state', 'in', ['draft', 'confirmed']),
+            '|',
+            ('date_pedido', '=', today),
+            '&',
+            ('tipo_pedido', '=', 'encargo'),
+            ('fecha_entrega', '>=', tomorrow),
         ]
         if pos_config_id:
             domain.append(('pos_config_id', '=', pos_config_id))
@@ -396,3 +410,30 @@ class TpvPedidoController(http.Controller):
             'cliente': order.partner_id.name,
             'sale_order': False,
         })
+
+
+class TpvBackupController(http.Controller):
+
+    @http.route('/tpv-pedidos/backup/download/<ids>', type='http', auth='user')
+    def download_backups(self, ids):
+        ids_list = [int(i) for i in ids.split(',') if i]
+        records = request.env['tpv.backup.file'].browse(ids_list)
+        if not records:
+            return request.not_found()
+
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+            for rec in records:
+                if rec.file_path and os.path.exists(rec.file_path):
+                    with open(rec.file_path, 'rb') as f:
+                        zf.writestr(rec.filename or 'informe.pdf', f.read())
+
+        records.unlink()
+        buffer.seek(0)
+        return request.make_response(
+            buffer.getvalue(),
+            headers=[
+                ('Content-Type', 'application/zip'),
+                ('Content-Disposition', 'attachment; filename=backups_seleccionados.zip'),
+            ],
+        )

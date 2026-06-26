@@ -4,20 +4,20 @@
 <meta charset="utf-8">
 <style>
 @page { size: A4 landscape; margin: 1.2cm; }
-body { font-family: 'DejaVu Sans', Arial, sans-serif; font-size: 10px; color: #222; }
+body { font-family: 'DejaVu Sans', Arial, sans-serif; font-size: {FONT_SIZE}px; color: #222; }
 .header { margin-bottom: 6px; }
-.header .title { font-size: 16px; font-weight: bold; margin: 0; }
-.header .date { font-size: 11px; color: #666; margin: 0; }
-.category-name { font-size: 13px; font-weight: bold; margin: 8px 0 4px 0; color: #1a1a1a; border-bottom: 2px solid #333; padding-bottom: 3px; }
+.header .title { font-size: {FONT_SIZE_TITLE}px; font-weight: bold; margin: 0; }
+.header .date { font-size: {FONT_SIZE_DATE}px; color: #666; margin: 0; }
+.category-name { font-size: {FONT_SIZE_SECTION}px; font-weight: bold; margin: 8px 0 4px 0; color: #1a1a1a; border-bottom: 2px solid #333; padding-bottom: 3px; }
 table { width: 100%; border-collapse: collapse; margin-top: 4px; }
-th { background-color: #2c2c2c; color: #fff; padding: 5px 4px; font-weight: 600; text-align: left; font-size: 9px; }
+th { background-color: #2c2c2c; color: #fff; padding: 5px 4px; font-weight: 600; text-align: left; font-size: {FONT_SIZE_TABLE_HEADER}px; }
 th.r { text-align: right; }
-td { padding: 3px 4px; border-bottom: 1px solid #ddd; font-size: 9.5px; }
+td { padding: 3px 4px; border-bottom: 1px solid #ddd; font-size: {FONT_SIZE_TABLE_CELL}px; }
 td.r { text-align: right; }
 tr:nth-child(even) { background-color: #f7f7f7; }
 .page-break { page-break-before: always; }
-.copy-label { font-size: 9px; color: #999; float: right; }
-.footer { margin-top: 8px; font-size: 8px; color: #999; text-align: center; }
+.copy-label { font-size: {FONT_SIZE_FOOTER}px; color: #999; float: right; }
+.footer { margin-top: 8px; font-size: {FONT_SIZE_FOOTER}px; color: #999; text-align: center; }
 </style>
 </head>
 <body>
