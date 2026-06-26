@@ -468,7 +468,7 @@ class TpvPedido(models.Model):
 
     @api.model
     def _cron_imprimir_resumen_obrador(self):
-        """Cron que corre cada 1 minuto. Solo ejecuta si la hora España coincide con la configurada."""
+        """Cron diario. Solo ejecuta si la hora España coincide con la configurada."""
         import pytz
         from datetime import datetime
 
