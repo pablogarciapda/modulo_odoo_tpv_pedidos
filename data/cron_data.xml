@@ -8,8 +8,8 @@
             <field name="state">code</field>
             <field name="code">model._cron_imprimir_resumen_obrador()</field>
             <field name="interval_number">1</field>
-            <field name="interval_type">days</field>
-            <field name="nextcall" eval="(DateTime.now().replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)).strftime('%Y-%m-%d 01:00:00')"/>
+            <field name="interval_type">minutes</field>
+            <field name="nextcall" eval="DateTime.now().strftime('%Y-%m-%d %H:%M:%S')"/>
             <field name="priority">5</field>
         </record>
     </data>

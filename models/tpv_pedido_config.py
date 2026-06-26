@@ -389,7 +389,7 @@ font_size_footer = ''' + str(fs_footer) + '''px — (pie de pagina, numeracion, 
         cron.write({
             'nextcall': target_utc.strftime('%Y-%m-%d %H:%M:%S'),
             'interval_number': 1,
-            'interval_type': 'days',
+            'interval_type': 'minutes',
         })
 
     @api.model_create_multi
